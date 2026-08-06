@@ -40,6 +40,9 @@ several deliberately reject the obvious option. Tooling research lives in
 | Auth | Better Auth against our own Postgres — cookie sessions on web, bearer tokens on native (ADR 0007) |
 | Chart positions | Apify actor scraping the UK Official Singles Chart (ADR 0002) |
 | Song media | Apple Music API — artwork, previews, catalogue metadata. Joined to chart data on artist and title strings (ADR 0002) |
+| Database host | Neon, London (`lhr1`), provisioned as a Vercel Marketplace resource. Preview deployments get their own database branch (ADR 0008) |
+| Deployment | Vercel project `waveger`, team `jacobreesnew-7380s-projects`, deploying `jacobrees-waveger/Waveger` |
+| Repo visibility | **Public** — Vercel Hobby will not deploy a private org repo, and the org is required for Linear sync (ADR 0009) |
 
 ## Agent skills
 
@@ -110,3 +113,59 @@ suggestion to use them as a proposal to reopen a closed decision, not as advice.
 
 Likewise, don't reach for Supabase, Prisma or Drizzle: ADRs 0004 and 0007 rule
 out all three.
+
+## Local setup
+
+Environment variables are **injected by Vercel**, not hand-written. Neon sets
+sixteen of them on the project; two matter:
+
+- `DATABASE_URL` — pooled (`-pooler` host). What the app uses.
+- `DATABASE_URL_UNPOOLED` — direct. What migrations use. Running migrations on
+  the pooled string fails intermittently under load rather than immediately.
+
+```bash
+vercel env pull .env.local     # both, plus the PG*/POSTGRES_* aliases
+```
+
+`.env.local` is gitignored. `.env.example` deliberately is **not** — it
+documents the required variables and belongs in the repo.
+
+## Worktrees
+
+`orca.yaml` runs on every `orca worktree create`. It copies `.env`,
+`.env.local`, `.claude/settings.local.json` and `.vercel/` from the primary
+checkout — none of which travel with a git worktree — and assigns the worktree
+its own web and Metro ports.
+
+That last part is not a nicety. Metro hard-defaults to 8081 and Orca allocates
+nothing, so without it a second worktree running `expo start` silently attaches
+to the **first** worktree's bundler, and you test the wrong code with no error
+anywhere. Start Expo with `pnpm expo start --port $RCT_METRO_PORT`.
+
+Editing `orca.yaml` re-triggers Orca's trust dialog; the setup hook will not run
+until it is accepted.
+
+## Working practice
+
+Features run through the engineering skills in a fixed order. All of them are
+`disable-model-invocation` — **only the human can invoke them**, which is why
+they do not appear in the model's skill list:
+
+```
+/grill-with-docs          interview to shared understanding; writes CONTEXT.md + ADRs
+   ↓
+/to-spec                  the conversation, synthesised into a spec on Linear
+   ↓
+/to-tickets               spec sliced into vertical tracer-bullet tickets
+   ↓
+/implement                one ticket, TDD at the agreed seams, then /code-review
+```
+
+Small work can skip from the grill straight to `/implement`. `/wayfinder`
+replaces `/to-spec` when the shape is still foggy — it resolves unknown
+*decisions* one at a time, where `to-spec` assumes you know what you are
+building and are slicing *how*.
+
+Run the grill and the implementation in separate sessions. The stated ceiling is
+roughly 140K tokens before the model degrades, and the installed plugins already
+spend ~9k of that before anything is typed.
