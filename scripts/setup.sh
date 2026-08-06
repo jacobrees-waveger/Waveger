@@ -297,7 +297,8 @@ if [[ -n "${EXPO_PUBLIC_API_URL:-}" ]]; then
 else
   note "skipped — the app will use the Metro host and port 3000"
 fi
-ENV_FILE=".env.local"
+# ENV_FILE stays pointed here: it is the only file this wizard writes, and the
+# closing summary names whatever it is set to.
 
 # ── 8 ─────────────────────────────────────────────────────────────────────
 stage "Check it works" 1

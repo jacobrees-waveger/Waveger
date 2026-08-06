@@ -6,6 +6,5 @@
  * Import it from `@waveger/db/migrations`, and the test harness from
  * `@waveger/db/testing`.
  */
-export { createDb, assertSafeIdentifier, type CreateDbOptions } from './client'
-export { loadRootEnv, unpooledConnectionString } from './env'
-export type { Database, ChartTable, SchemaMigrationTable } from './schema'
+export { createDb, type CreateDbOptions } from './client'
+export type { Database } from './schema'

@@ -1,7 +1,7 @@
 import { createRoute } from '@hono/zod-openapi'
 import { apiErrorSchema, apiStatusSchema, type ApiStatus } from '@waveger/domain'
-import type { OpenAPIHono, RouteHandler } from '@hono/zod-openapi'
-import type { ApiEnv } from '../env'
+import type { RouteHandler } from '@hono/zod-openapi'
+import { errorBody, type ApiEnv } from '../context'
 
 export const statusRoute = createRoute({
   method: 'get',
@@ -23,30 +23,24 @@ export const statusRoute = createRoute({
   },
 })
 
-const handler: RouteHandler<typeof statusRoute, ApiEnv> = async (c) => {
-  const db = c.get('db')
-
+export const statusHandler: RouteHandler<typeof statusRoute, ApiEnv> = async (
+  c,
+) => {
   let migrations: string[]
-  let charts: ApiStatus['charts']
   try {
-    const rows = await db
+    const rows = await c
+      .get('db')
       .selectFrom('schema_migration')
       .select('name')
       .orderBy('name')
       .execute()
     migrations = rows.map((row) => row.name)
-
-    charts = await db
-      .selectFrom('chart')
-      .select(['slug', 'name', 'compiler'])
-      .orderBy('slug')
-      .execute()
   } catch (cause) {
     return c.json(
-      {
-        error: 'database_unreachable',
-        message: cause instanceof Error ? cause.message : String(cause),
-      },
+      errorBody(
+        'database_unreachable',
+        cause instanceof Error ? cause.message : String(cause),
+      ),
       503,
     )
   }
@@ -57,12 +51,7 @@ const handler: RouteHandler<typeof statusRoute, ApiEnv> = async (c) => {
     service: 'waveger-api',
     version: 'v1',
     database: { reachable: true, migrations },
-    charts,
   } satisfies ApiStatus)
 
   return c.json(body, 200)
-}
-
-export function registerStatusRoute(app: OpenAPIHono<ApiEnv>): void {
-  app.openapi(statusRoute, handler)
 }

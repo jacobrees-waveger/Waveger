@@ -47,7 +47,7 @@ apps/
   web/         Next.js, App Router. Also hosts the API (ADR 0006).
   native/      Expo, React Native, Expo Router.
 packages/
-  domain/      The domain language in code, and the API contract as Zod schemas.
+  domain/      Shared types. Today that is the API contract, as Zod schemas.
   db/          Kysely, the SQL migrations, and the migration runner (ADR 0004).
   api/         The Hono app. Knows nothing about Next.js.
   api-client/  What both apps call the API through.
@@ -84,10 +84,12 @@ under load rather than immediately:
 - `DATABASE_URL_UNPOOLED` — direct. What migrations and tests use.
 
 Migrations are hand-written SQL in `packages/db/migrations/`, applied in
-filename order and recorded in `schema_migration`. There is no `down`: this
-project removes obsolete paths rather than reversing into them. Adding a
-migration means editing `packages/db/src/schema.ts` in the same commit — that
-file is the hand-written record of what the SQL produced.
+filename order and recorded in `schema_migration` — a table which is itself the
+first migration, so every table in the database was put there by a file you can
+read. There is no `down`: this project removes obsolete paths rather than
+reversing into them. Adding a migration means editing `packages/db/src/schema.ts`
+in the same commit — that file is the hand-written record of what the SQL
+produced, and nothing generates it.
 
 ## Tests
 

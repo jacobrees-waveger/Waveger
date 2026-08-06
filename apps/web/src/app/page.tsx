@@ -1,5 +1,5 @@
 import { serverApiClient } from '@/lib/api'
-import { ApiError } from '@waveger/api-client'
+import { describeError } from '@waveger/api-client'
 import type { ApiStatus } from '@waveger/domain'
 
 export default async function Home() {
@@ -10,10 +10,7 @@ export default async function Home() {
   try {
     status = await client.getStatus()
   } catch (error) {
-    failure =
-      error instanceof ApiError
-        ? `${error.code}: ${error.message}`
-        : String(error)
+    failure = describeError(error)
   }
 
   return (
@@ -26,7 +23,7 @@ export default async function Home() {
         </p>
       </header>
 
-      {failure !== null ? (
+      {status === null ? (
         <p className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {failure}
         </p>
@@ -34,23 +31,17 @@ export default async function Home() {
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
           <dt className="text-zinc-500">Service</dt>
           <dd className="font-mono">
-            {status?.service} {status?.version}
+            {status.service} {status.version}
           </dd>
 
           <dt className="text-zinc-500">Database</dt>
-          <dd className="font-mono">
-            reachable, {status?.database.migrations.length} migration
-            {status?.database.migrations.length === 1 ? '' : 's'} applied
-          </dd>
+          <dd className="font-mono">reachable</dd>
 
-          <dt className="text-zinc-500">Charts</dt>
+          <dt className="text-zinc-500">Migrations</dt>
           <dd>
-            <ul className="flex flex-col gap-1">
-              {status?.charts.map((chart) => (
-                <li key={chart.slug}>
-                  {chart.name}{' '}
-                  <span className="text-zinc-500">— {chart.compiler}</span>
-                </li>
+            <ul className="flex flex-col gap-1 font-mono">
+              {status.database.migrations.map((migration) => (
+                <li key={migration}>{migration}</li>
               ))}
             </ul>
           </dd>

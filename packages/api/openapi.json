@@ -42,41 +42,12 @@
               "reachable",
               "migrations"
             ]
-          },
-          "charts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Chart"
-            }
           }
         },
         "required": [
           "service",
           "version",
-          "database",
-          "charts"
-        ]
-      },
-      "Chart": {
-        "type": "object",
-        "properties": {
-          "slug": {
-            "type": "string",
-            "minLength": 1
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "compiler": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "slug",
-          "name",
-          "compiler"
+          "database"
         ]
       },
       "ApiError": {

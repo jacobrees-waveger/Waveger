@@ -1,19 +1,19 @@
 import { OpenAPIHono } from '@hono/zod-openapi'
 import type { Database } from '@waveger/db'
 import type { Kysely } from 'kysely'
-import type { ApiEnv } from './env'
-import { registerStatusRoute } from './routes/status'
+import { errorBody, type ApiEnv } from './context'
+import { statusHandler, statusRoute } from './routes/status'
 
 /**
  * ADR 0006: one API, versioned from the first commit, mounted inside the
  * Next.js deployment. The namespace is part of the contract — a shipped native
  * binary cannot be recalled, so `/api/v1` only ever grows.
  */
-export const API_BASE_PATH = '/api/v1'
+const API_BASE_PATH = '/api/v1'
 
-export const OPENAPI_PATH = '/openapi.json'
+const OPENAPI_PATH = '/openapi.json'
 
-export const openApiInfo = {
+const openApiInfo = {
   openapi: '3.1.0',
   info: {
     title: 'Waveger API',
@@ -26,17 +26,14 @@ export const openApiInfo = {
 
 function buildApp(db?: Kysely<Database>) {
   const app = new OpenAPIHono<ApiEnv>({
-    // Rejects a request whose body, params or query fail their Zod schema, in
-    // the same error shape every other failure uses. Set once, for every route.
-    defaultHook: (result, c) => {
-      if (!result.success) {
-        return c.json(
-          { error: 'invalid_request', message: result.error.message },
-          422,
-        )
-      }
-      return undefined
-    },
+    // The validation policy for every route, set once. ADR 0006 puts Zod on
+    // the routes from the first commit because it is free now and expensive
+    // to retrofit; no route takes a request body or parameter yet, so this is
+    // the policy waiting for its first input rather than something in use.
+    defaultHook: (result, c) =>
+      result.success
+        ? undefined
+        : c.json(errorBody('invalid_request', result.error.message), 422),
   }).basePath(API_BASE_PATH)
 
   // Registered before the routes so it runs before them.
@@ -47,14 +44,14 @@ function buildApp(db?: Kysely<Database>) {
     })
   }
 
-  registerStatusRoute(app)
+  app.openapi(statusRoute, statusHandler)
   app.doc31(OPENAPI_PATH, openApiInfo)
 
   app.notFound((c) =>
-    c.json({ error: 'not_found', message: `No route for ${c.req.path}` }, 404),
+    c.json(errorBody('not_found', `No route for ${c.req.path}`), 404),
   )
   app.onError((error, c) =>
-    c.json({ error: 'internal_error', message: error.message }, 500),
+    c.json(errorBody('internal_error', error.message), 500),
   )
 
   return app

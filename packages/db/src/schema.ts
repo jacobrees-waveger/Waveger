@@ -1,4 +1,4 @@
-import type { ColumnType, Generated } from 'kysely'
+import type { Generated } from 'kysely'
 
 /**
  * The database as Kysely sees it. Hand-written to match the SQL in
@@ -14,15 +14,6 @@ export interface SchemaMigrationTable {
   applied_at: Generated<Date>
 }
 
-export interface ChartTable {
-  id: Generated<string>
-  slug: string
-  name: string
-  compiler: string
-  created_at: ColumnType<Date, never, never>
-}
-
 export interface Database {
   schema_migration: SchemaMigrationTable
-  chart: ChartTable
 }

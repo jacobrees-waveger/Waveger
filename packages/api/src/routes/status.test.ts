@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { createTestDatabase, type TestDatabase } from '@waveger/db/testing'
 import { apiStatusSchema } from '@waveger/domain'
+import { sql } from 'kysely'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApi } from '../app'
 
@@ -32,42 +33,25 @@ test('GET /api/v1/status reports the migrated database', async () => {
   expect(body.service).toBe('waveger-api')
   expect(body.version).toBe('v1')
   expect(body.database.reachable).toBe(true)
-  expect(body.database.migrations).toEqual(['0001_create_chart'])
-  expect(body.charts).toEqual([
-    {
-      slug: 'uk-official-singles',
-      name: 'Official Singles Chart Top 100',
-      compiler: 'Official Charts Company',
-    },
-  ])
+  expect(body.database.migrations).toEqual(['0001_create_schema_migration'])
 })
 
-test('a write in one test database is invisible to another', async () => {
-  await database.db
-    .insertInto('chart')
-    .values({
-      slug: 'leaks-if-not-isolated',
-      name: 'Leaks If Not Isolated',
-      compiler: 'Nobody',
-    })
-    .execute()
+test('a table created in one test database is invisible to another', async () => {
+  await sql`create table isolation_probe (id integer)`.execute(database.db)
 
   const neighbour = await createTestDatabase()
   try {
     expect(neighbour.schema).not.toBe(database.schema)
 
-    const own = await api.request('/api/v1/status')
-    const other = await createApi({ db: neighbour.db }).request(
-      '/api/v1/status',
-    )
+    const visible = async (test: TestDatabase) => {
+      const { rows } = await sql<{
+        found: string | null
+      }>`select to_regclass('isolation_probe')::text as found`.execute(test.db)
+      return rows[0]?.found !== null
+    }
 
-    const slugsOf = async (response: Response) =>
-      apiStatusSchema
-        .parse(await response.json())
-        .charts.map((chart) => chart.slug)
-
-    expect(await slugsOf(own)).toContain('leaks-if-not-isolated')
-    expect(await slugsOf(other)).not.toContain('leaks-if-not-isolated')
+    expect(await visible(database)).toBe(true)
+    expect(await visible(neighbour)).toBe(false)
   } finally {
     await neighbour.dispose()
   }

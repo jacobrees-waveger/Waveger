@@ -26,6 +26,13 @@ the web app, the native app and the packages cannot drift onto different copies
 of TypeScript, Zod or the pg driver — the failure mode a monorepo exists to
 prevent, and the one that makes native builds fail obscurely.
 
+**React is the deliberate exception, and stays per-app.** Expo pins React to an
+exact version tied to its React Native release; Next tracks its own. Forcing
+them onto one entry would mean overriding one framework's own constraint, which
+is how native builds fail obscurely. This costs nothing because ADR 0001 shares
+no UI: no package depends on React at all, so there is no shared copy to drift.
+Anything both apps genuinely share does go in the catalogue.
+
 **A new consumer of a package has to be told to transpile it.** For the web app
 that is one entry in `next.config.ts`. Anything that bundles a package without
 a TypeScript loader will fail loudly at build time, not subtly at runtime.

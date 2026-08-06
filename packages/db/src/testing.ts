@@ -10,8 +10,6 @@ export interface TestDatabase {
   db: Kysely<Database>
   /** The Postgres schema this database is confined to. */
   schema: string
-  /** Migrations applied to it, oldest first. */
-  migrations: string[]
   /** Closes the pool and drops the schema. Always call it. */
   dispose(): Promise<void>
 }
@@ -29,13 +27,12 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   const connectionString = unpooledConnectionString()
   const schema = `test_${randomUUID().replaceAll('-', '')}`
 
-  const migrations = await migrateToLatest({ connectionString, schema })
+  await migrateToLatest({ connectionString, schema })
   const db = createDb({ connectionString, schema, max: 1 })
 
   return {
     db,
     schema,
-    migrations,
     async dispose() {
       await db.destroy()
       await dropSchema(connectionString, schema)

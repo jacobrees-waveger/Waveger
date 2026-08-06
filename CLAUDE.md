@@ -155,8 +155,10 @@ pnpm install
 pnpm db:migrate
 ```
 
-`vercel env pull` **rewrites `.env.local` wholesale**. `APIFY_TOKEN` currently
-lives there by hand and is not set on the Vercel project, so a pull deletes it.
+`vercel env pull` **rewrites `.env.local` wholesale**, so nothing may live there
+by hand — anything you need must be on the Vercel project first
+(`vercel env add`). It also appends a blanket `.env*` to `.gitignore` on every
+run; delete that line, it shadows `.env.example`.
 
 `.env.local` is gitignored. `.env.example` deliberately is **not** — it
 documents the required variables and belongs in the repo.
@@ -169,8 +171,13 @@ loads the repository-root `.env.local` before the server starts. Expo reads
 
 `orca.yaml` runs on every `orca worktree create`. It copies `.env.local`,
 `.claude/settings.local.json` and `.vercel/` from the primary checkout — none of
-which travel with a git worktree — installs dependencies, and assigns the
-worktree its own web and Metro ports.
+which travel with a git worktree — installs dependencies, and writes the
+worktree its own web and Metro ports into `.env`.
+
+`.env` and `.env.local` are split on purpose: `.env.local` is pulled from Vercel
+and copied between worktrees, `.env` is per-worktree and copied nowhere. Ports
+must be in `.env`, because `vercel env pull` rewrites `.env.local` wholesale and
+would silently take them with it.
 
 That last part is not a nicety. Metro hard-defaults to 8081 and Orca allocates
 nothing, so without it a second worktree running `expo start` silently attaches
