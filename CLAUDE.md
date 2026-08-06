@@ -30,8 +30,9 @@ A TypeScript web + mobile product. Stack decisions are still open — see
 Issues live in **Linear**, team `Waveger` (`WAV-*`), reached through Orca's CLI:
 `orca linear ... --workspace fb959783-b1df-489f-a228-87c38bed4271`. Orca is
 connected to three Linear workspaces and does not infer one from the directory,
-so **that flag is mandatory** — omitting it silently targets Sift. There is
-deliberately no Linear MCP server; don't add one.
+so **that flag is mandatory** — omitting it silently targets whichever workspace
+Orca picks, and that changes without warning. There is deliberately no Linear MCP
+server; don't add one.
 
 `jacobrees-waveger/Waveger` is linked to that team with **two-way** issue sync,
 so create issues in Linear only — filing on both sides makes an unreconcilable

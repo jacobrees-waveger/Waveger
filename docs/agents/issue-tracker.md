@@ -54,11 +54,18 @@ verified key for each instead. If a command fails, run `orca status --json`, and
 Prefer `--json` for agent-driven calls.
 
 **Gotcha:** Orca is connected to three Linear workspaces (CanonCore, Sift,
-Waveger) and does **not** infer one from the current directory. Omitting
-`--workspace` in this repo resolves to **Sift**, silently and without an error.
-Pass `--workspace fb959783-b1df-489f-a228-87c38bed4271` on every command. The
+Waveger) and does **not** infer one from the current directory. An omitted
+`--workspace` resolves to an arbitrary one that **changes without warning** — it
+resolved to Sift on the morning of 2026-08-06 and to Waveger the same afternoon,
+with nothing in either repo touched in between. Never rely on it; pass
+`--workspace fb959783-b1df-489f-a228-87c38bed4271` on every command. The
 exception is `--current`, which resolves the workspace from the Orca worktree's
 linked ticket.
+
+The failure is silent and direction-dependent. `list-issues` unscoped returns
+another workspace's issues, which at least looks wrong; `search` unscoped returns
+an empty list, which reads as "no matching issues" rather than "wrong
+workspace".
 
 ## When a skill says "publish to the issue tracker"
 
