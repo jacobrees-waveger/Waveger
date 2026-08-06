@@ -6,6 +6,41 @@ Issues and specs for this repo live in the **Waveger** team in Linear.
 - Team id: `166136f4-92a8-4289-8b57-159dfce988f1`
 - Workspace id: `fb959783-b1df-489f-a228-87c38bed4271`
 
+## GitHub sync
+
+`jacobrees-waveger/Waveger` (private) is linked to the Waveger team with
+**two-way** issue sync, so every issue exists in both places. Set up 2026-08-06.
+
+**Create issues in Linear only.** The mirror is automatic — filing the same
+issue on both sides produces a duplicate pair that nothing will reconcile.
+Issues opened on GitHub also land in Linear, which is the intended direction
+for anything reported against the repo.
+
+Updates propagate both ways, so editing either copy is fine. Editing both is a
+conflict waiting to happen; pick the Linear copy by default, since that is
+where labels and triage state live. Labels sync by name, but GitHub holds its
+own label objects — same names, different colours, two independent sets.
+
+**The repo lives in its own GitHub org, and that is load-bearing.** A GitHub App
+installs once per owner, and one owner can bind to only one Linear workspace, so
+two workspaces need two orgs. Waveger and Sift were both under the personal
+`jacobdrees` account until 2026-08-06, which is why Waveger could not be
+connected at all — it failed with "Make sure you haven't connected another Linear
+account with this GitHub installation". They were split into `jacobrees-waveger`
+and `jacobrees-sift`, each bound to the matching workspace. The single
+`jacobdrees` account still owns and administers both orgs; a second GitHub
+account is **not** required, contrary to the common advice. Don't move this repo
+back under a personal account, and don't add it to Sift's org.
+
+**Two-way is not the default.** A new repo↔team link defaults to *one-way,
+GitHub → Linear*; two-way must be chosen explicitly. The setting governs issue
+*creation* only — updates to already-synced issues always flow both ways.
+
+**Removing a connected org deletes its repo↔team links**, even links for repos
+that have since moved to a different org — Linear anchors them to the original
+connection record. Re-add the link and re-select two-way afterwards, and verify
+rather than assume.
+
 ## Which tool to use
 
 **`orca linear ...` — the only option.** The Linear MCP server was removed from

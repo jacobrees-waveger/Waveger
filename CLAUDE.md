@@ -31,8 +31,13 @@ Issues live in **Linear**, team `Waveger` (`WAV-*`), reached through Orca's CLI:
 `orca linear ... --workspace fb959783-b1df-489f-a228-87c38bed4271`. Orca is
 connected to three Linear workspaces and does not infer one from the directory,
 so **that flag is mandatory** — omitting it silently targets Sift. There is
-deliberately no Linear MCP server; don't add one. See
-`docs/agents/issue-tracker.md`.
+deliberately no Linear MCP server; don't add one.
+
+`jacobrees-waveger/Waveger` is linked to that team with **two-way** issue sync,
+so create issues in Linear only — filing on both sides makes an unreconcilable
+duplicate pair. The repo sits in its own GitHub org on purpose: one GitHub owner
+can bind to only one Linear workspace, so sharing an org with Sift would break
+both. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
