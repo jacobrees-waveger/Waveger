@@ -1,0 +1,5 @@
+# Playwright MCP scratch output
+.playwright-mcp/
+
+# Local, per-machine Claude Code settings (project settings are tracked)
+.claude/settings.local.json
