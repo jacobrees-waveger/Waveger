@@ -4,6 +4,12 @@
 # Local, per-machine Claude Code settings (project settings are tracked)
 .claude/settings.local.json
 
-# Secrets — never commit
+# Secrets — never commit. `.env.example` is deliberately NOT ignored:
+# it documents the required variables and belongs in the repo.
 .env
 .env.local
+.env.*.local
+
+# Vercel project link (machine-local; carried into worktrees by orca.yaml)
+.vercel
+.env*

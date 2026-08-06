@@ -1,0 +1,64 @@
+# Orca repo configuration.
+#
+# `scripts.setup` runs after every `orca worktree create`. This repo's
+# setupRunPolicy is `run-by-default`, so it runs without extra flags —
+# override per-create with `--setup run|skip|inherit`.
+#
+# Only ORCA_ROOT_PATH and ORCA_WORKTREE_PATH are documented by Orca, so
+# nothing here depends on any other ORCA_* variable.
+
+scripts:
+  setup: |
+    set -euo pipefail
+    cd "$ORCA_WORKTREE_PATH"
+
+    # Secrets and local approvals are gitignored, so a fresh worktree starts
+    # without them. Carry them across from the primary checkout.
+    #   .env / .env.local              — APIFY_TOKEN, DATABASE_URL (vercel env pull)
+    #   .claude/settings.local.json    — this project's MCP approvals
+    #   .vercel/                       — the Vercel project link
+    for f in .env .env.local .claude/settings.local.json; do
+      if [ -f "$ORCA_ROOT_PATH/$f" ]; then
+        mkdir -p "$(dirname "$f")"
+        cp "$ORCA_ROOT_PATH/$f" "$f"
+      fi
+    done
+    if [ -d "$ORCA_ROOT_PATH/.vercel" ] && [ ! -d .vercel ]; then
+      cp -R "$ORCA_ROOT_PATH/.vercel" .vercel
+    fi
+
+    # Install only once there is something to install. Until WAV-8 lands there
+    # is no package.json, and an unguarded install would fail every worktree.
+    if [ -f package.json ]; then
+      if [ -f pnpm-lock.yaml ]; then
+        pnpm install --frozen-lockfile
+      else
+        pnpm install
+      fi
+    fi
+
+    # Metro hard-defaults to 8081 and Next to 3000, and Orca does not allocate
+    # ports. Without this, a second worktree's `expo start` silently attaches to
+    # the FIRST worktree's bundler — you then test the wrong code with no error.
+    # Derive a stable per-worktree pair from the worktree directory name.
+    slot=$(( $(basename "$ORCA_WORKTREE_PATH" | cksum | cut -d' ' -f1) % 40 ))
+    web_port=$(( 3000 + slot ))
+    metro_port=$(( 8100 + slot ))
+    touch .env.local
+    if ! grep -q '^PORT=' .env.local 2>/dev/null; then
+      {
+        echo ""
+        echo "# Per-worktree ports, written by orca.yaml setup"
+        echo "PORT=$web_port"
+        echo "RCT_METRO_PORT=$metro_port"
+      } >> .env.local
+    fi
+
+    echo "worktree ready — web :$web_port, metro :$metro_port"
+    echo "run expo with: pnpm expo start --port \$RCT_METRO_PORT"
+
+  archive: |
+    set -euo pipefail
+    # Orca cleans stale helpers on quit, but its own guidance is that agents
+    # should kill the simulator helper when done. Never fail an archive on it.
+    orca emulator kill >/dev/null 2>&1 || true
