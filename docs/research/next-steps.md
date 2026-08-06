@@ -2,6 +2,15 @@
 
 Written 2026-08-06. Companion to [agent-tooling.md](./agent-tooling.md), which holds the full research and verdicts.
 
+> **Partly superseded, same day.** The grilling session has since produced
+> `CONTEXT.md` and ADRs 0001–0007, a GitHub remote exists
+> (`jacobrees-waveger/Waveger`, two-way Linear sync), and
+> `/setup-matt-pocock-skills` has run. The stack is now decided — see the Stack
+> table in `CLAUDE.md`. What remains accurate below: the install triggers and
+> the notes on the mattpocock flow. What's stale: "no git remote", the open
+> tracker question, and Supabase as a candidate (ADRs 0004 and 0007 rule it
+> out). Current tool ownership lives in `CLAUDE.md`, not here.
+
 ## Done
 
 Five plugins installed:
