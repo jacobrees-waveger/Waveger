@@ -40,26 +40,34 @@ scripts:
     # the FIRST worktree's bundler — you then test the wrong code with no error.
     # Derive a stable per-worktree pair from the worktree directory name.
     #
-    # These go in .env, NOT .env.local: `vercel env pull .env.local` rewrites
-    # that file wholesale, so ports written there vanish the first time anyone
-    # refreshes their secrets — reintroducing the silent-wrong-bundler failure
-    # this block exists to prevent. .env is also the right home on its own
-    # terms: it is the one env file that must NOT be copied between worktrees.
+    # Each port goes in the .env of the app that reads it, not in a file at the
+    # root, because a root file is read by nothing: the repo-root .env.local is
+    # for secrets and `vercel env pull` rewrites it wholesale, and a root .env
+    # is neither loaded by a framework nor sourced by your shell. Expo loads
+    # apps/native/.env itself; apps/web/dev sources apps/web/.env, because Next
+    # reads PORT before it loads any env file.
     slot=$(( $(basename "$ORCA_WORKTREE_PATH" | cksum | cut -d' ' -f1) % 40 ))
     web_port=$(( 3000 + slot ))
     metro_port=$(( 8100 + slot ))
-    touch .env
-    if ! grep -q '^PORT=' .env 2>/dev/null; then
+
+    if ! grep -qs '^PORT=' apps/web/.env; then
       {
-        echo "# Per-worktree ports, written by orca.yaml setup. Not copied"
-        echo "# between worktrees, and not touched by 'vercel env pull'."
+        echo "# Per-worktree port, written by orca.yaml setup."
         echo "PORT=$web_port"
+      } >> apps/web/.env
+    fi
+
+    if ! grep -qs '^RCT_METRO_PORT=' apps/native/.env; then
+      {
+        echo "# Per-worktree ports, written by orca.yaml setup."
         echo "RCT_METRO_PORT=$metro_port"
-      } >> .env
+        echo "# The web app, and so the API, moved off 3000 with it."
+        echo "EXPO_PUBLIC_API_PORT=$web_port"
+      } >> apps/native/.env
     fi
 
     echo "worktree ready — web :$web_port, metro :$metro_port"
-    echo "run expo with: pnpm expo start --port \$RCT_METRO_PORT"
+    echo "'pnpm dev' and 'pnpm dev:native' pick those up on their own"
 
   archive: |
     set -euo pipefail

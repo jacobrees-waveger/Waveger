@@ -37,8 +37,9 @@ pnpm openapi        # re-emit packages/api/openapi.json from the routes
 ```
 
 In an Orca worktree, `orca.yaml` has already assigned this checkout its own
-ports. Start Expo with `pnpm expo start --port $RCT_METRO_PORT`, or the
-bundler will silently attach to another worktree's.
+ports, in `apps/web/.env` and `apps/native/.env`. The two commands above pick
+them up with no flags — which matters, because a Metro bundler on someone
+else's port serves you their code with no error anywhere.
 
 ## Layout
 

@@ -19,7 +19,7 @@ import { assertSafeIdentifier } from './client'
  * is why this talks to `pg` directly.
  */
 
-export const migrationsDirectory = fileURLToPath(
+const migrationsDirectory = fileURLToPath(
   new URL('../migrations/', import.meta.url),
 )
 

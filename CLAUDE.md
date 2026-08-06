@@ -171,13 +171,21 @@ loads the repository-root `.env.local` before the server starts. Expo reads
 
 `orca.yaml` runs on every `orca worktree create`. It copies `.env.local`,
 `.claude/settings.local.json` and `.vercel/` from the primary checkout — none of
-which travel with a git worktree — installs dependencies, and writes the
-worktree its own web and Metro ports into `.env`.
+which travel with a git worktree — installs dependencies, and gives the worktree
+its own ports.
 
-`.env` and `.env.local` are split on purpose: `.env.local` is pulled from Vercel
-and copied between worktrees, `.env` is per-worktree and copied nowhere. Ports
-must be in `.env`, because `vercel env pull` rewrites `.env.local` wholesale and
-would silently take them with it.
+Each port is written to the `.env` of the app that reads it, because a file at
+the repo root is read by nothing: `.env.local` is for secrets and `vercel env
+pull` rewrites it wholesale, and a root `.env` is neither loaded by a framework
+nor sourced by your shell.
+
+- `apps/native/.env` — `RCT_METRO_PORT`, which Expo loads by itself, plus
+  `EXPO_PUBLIC_API_PORT` so the native app follows the web app off port 3000.
+- `apps/web/.env` — `PORT`. Next reads `PORT` *before* it loads any env file,
+  so `apps/web`'s `dev` script sources this one first. That indirection is the
+  whole reason that script is not just `next dev`.
+
+`pnpm dev` and `pnpm dev:native` pick both up with no flags.
 
 That last part is not a nicety. Metro hard-defaults to 8081 and Orca allocates
 nothing, so without it a second worktree running `expo start` silently attaches

@@ -263,6 +263,15 @@ note "  DATABASE_URL_UNPOOLED  direct   — what migrations and tests use"
 
 vercel env pull .env.local
 
+# The pull appends a blanket `.env*` to .gitignore every time it runs, which
+# shadows the committed `.env.example`. Undo it rather than tell you to.
+if grep -qxs '\.env\*' .gitignore; then
+  tmp=$(mktemp)
+  grep -vxE '\.env\*' .gitignore > "$tmp"
+  mv "$tmp" .gitignore
+  note "removed the blanket '.env*' line 'vercel env pull' added to .gitignore"
+fi
+
 for required in DATABASE_URL DATABASE_URL_UNPOOLED; do
   if grep -qE "^${required}=" .env.local; then
     say "$required ✓"
@@ -312,5 +321,5 @@ fi
 
 finish
 note "next: 'pnpm dev' for the web app, 'pnpm dev:native' for the native one"
-note "in an Orca worktree, start Expo with: pnpm expo start --port \$RCT_METRO_PORT"
+note "in an Orca worktree both already run on ports of their own — no flags needed"
 printf '\n'

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
  * In a deployed function they are already in `process.env` and there is no
  * file to read, hence the existence check.
  */
-export function loadRootEnv(): void {
+function loadRootEnv(): void {
   const envFile = fileURLToPath(new URL('../../../.env.local', import.meta.url))
   if (existsSync(envFile)) {
     process.loadEnvFile(envFile)

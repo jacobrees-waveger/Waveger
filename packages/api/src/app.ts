@@ -20,10 +20,22 @@ const openApiInfo = {
     version: 'v1',
     description:
       'The one API behind both Waveger apps. Evolves additively: routes and ' +
-      'fields are added, never removed or repurposed.',
+      'fields are added, never removed or repurposed. Any path this document ' +
+      'does not list answers 404 in the same ApiError envelope every failure ' +
+      'below uses.',
   },
 } as const
 
+export interface CreateApiOptions {
+  db: Kysely<Database>
+}
+
+/**
+ * The API, ready to serve. Everything it needs is passed in.
+ *
+ * `db` is optional internally only so that `createOpenApiDocument` can build
+ * the same routes without one; generating the document never runs a handler.
+ */
 function buildApp(db?: Kysely<Database>) {
   const app = new OpenAPIHono<ApiEnv>({
     // The validation policy for every route, set once. ADR 0006 puts Zod on
@@ -57,19 +69,8 @@ function buildApp(db?: Kysely<Database>) {
   return app
 }
 
-export interface CreateApiOptions {
-  db: Kysely<Database>
-}
+export const createApi = ({ db }: CreateApiOptions) => buildApp(db)
 
-/** The API, ready to serve. Everything it needs is passed in. */
-export function createApi(options: CreateApiOptions) {
-  return buildApp(options.db)
-}
-
-/**
- * The OpenAPI document, built from the same route definitions the server
- * uses. No database: generating the document never runs a handler.
- */
-export function createOpenApiDocument() {
-  return buildApp().getOpenAPI31Document(openApiInfo)
-}
+/** The OpenAPI document, built from the same route definitions the server uses. */
+export const createOpenApiDocument = () =>
+  buildApp().getOpenAPI31Document(openApiInfo)

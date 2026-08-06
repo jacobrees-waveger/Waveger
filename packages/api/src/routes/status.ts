@@ -20,6 +20,10 @@ export const statusRoute = createRoute({
       description: 'The service is up but the database is not reachable.',
       content: { 'application/json': { schema: apiErrorSchema } },
     },
+    500: {
+      description: 'Something else failed. Always the same error envelope.',
+      content: { 'application/json': { schema: apiErrorSchema } },
+    },
   },
 })
 

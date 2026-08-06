@@ -16,20 +16,20 @@ import {
  * later as `undefined`.
  */
 
-export class ApiError extends Error {
+export class ApiRequestError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
     message: string,
   ) {
     super(message)
-    this.name = 'ApiError'
+    this.name = 'ApiRequestError'
   }
 }
 
 /** One line fit to show a person, whatever went wrong. */
 export function describeError(error: unknown): string {
-  return error instanceof ApiError
+  return error instanceof ApiRequestError
     ? `${error.code}: ${error.message}`
     : String(error)
 }
@@ -55,7 +55,7 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
 
     if (!response.ok) {
       const parsed = apiErrorSchema.safeParse(body)
-      throw new ApiError(
+      throw new ApiRequestError(
         response.status,
         parsed.success ? parsed.data.error : 'unexpected_response',
         parsed.success
