@@ -3,3 +3,7 @@
 
 # Local, per-machine Claude Code settings (project settings are tracked)
 .claude/settings.local.json
+
+# Secrets — never commit
+.env
+.env.local

@@ -1,7 +1,11 @@
 # Waveger
 
-A TypeScript web + mobile product. Stack decisions are still open — see
-`docs/research/agent-tooling.md` and `docs/research/next-steps.md`.
+A music charts product with a fantasy-sports-style game played on top of it.
+Waveger consumes externally published charts; it never compiles its own.
+
+Read `CONTEXT.md` for the domain language and `docs/adr/` for the decisions —
+several deliberately reject the obvious option. Tooling research lives in
+`docs/research/`.
 
 ## Engineering principles
 
@@ -22,6 +26,20 @@ A TypeScript web + mobile product. Stack decisions are still open — see
   capability without checking its documentation and types.
 - Make architectural decisions for the long term. Do not accept a stopgap
   that only works for now and is meant to be replaced later.
+
+## Stack
+
+| | |
+|---|---|
+| Repo | Monorepo, two apps at equal priority, sharing domain types, scoring rules, the chart client and design tokens — **not** UI. Screens are written twice (ADR 0001) |
+| Web | Next.js, App Router |
+| Native | Expo, React Native on the New Architecture |
+| API | Hono, mounted at `app/api/[[...route]]/route.ts` inside the Next.js deployment. Handlers take a Web-standard `Request` and import nothing from `next/*` (ADR 0006) |
+| Database access | Kysely — a typed query builder, **not** an ORM (ADR 0004) |
+| Database | Postgres. Host not yet chosen |
+| Auth | Better Auth against our own Postgres — cookie sessions on web, bearer tokens on native (ADR 0007) |
+| Chart positions | Apify actor scraping the UK Official Singles Chart (ADR 0002) |
+| Song media | Apple Music API — artwork, previews, catalogue metadata. Joined to chart data on artist and title strings (ADR 0002) |
 
 ## Agent skills
 
@@ -52,3 +70,43 @@ labels, with `bug`/`enhancement` mapping to `Bug`/`Feature`. Change them with
 
 Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, both
 created lazily. See `docs/agents/domain.md`.
+
+## Which tool owns what
+
+Several tools overlap here. Picking the wrong one wastes time.
+
+| Job | Tool |
+|---|---|
+| Next.js, React, routing, caching, Turbopack | **`vercel` plugin skills** (`vercel:nextjs`, `vercel:react-best-practices`, …) |
+| Expo, Expo Router, native UI, EAS builds and submission | **`expo` plugin skills** |
+| Reanimated, Gesture Handler, SVG, JSI, worklets, RN threading | **`skills:react-native-best-practices`** (Software Mansion — they maintain those libraries) |
+| Apple framework docs, Apple Music API, SwiftUI symbols | **`apple-docs` MCP** — *not* Context7, which is weak on Apple docs |
+| Docs for everything else — Kysely, Hono, Better Auth, Apify | **`context7` MCP** |
+| Issues, tickets, triage | **`orca linear ... --workspace <id>`** — see Issue tracker above |
+| Taps, gestures, typing, hardware buttons on the iOS simulator | **`orca-emulator` skill** |
+| Screenshots of the simulator | **Expo MCP** (`automation_take_screenshot`) — `orca-emulator` has **no** screenshot command, so an agent driving it alone is blind |
+| Driving a browser against the web app | **Orca's embedded browser** (`orca goto`, `orca snapshot`, `orca click`, …) — worktree-scoped tabs |
+| Web performance, Core Web Vitals, Lighthouse, heap, source-mapped traces | **`chrome-devtools-mcp`** — `orca console`/`orca network` are log tails, not traces |
+| Desktop UI outside Orca — Xcode, Simulator.app, external browsers | **`computer-use` skill** |
+
+Not yet installed, each waiting on a trigger: `next-devtools-mcp` and
+`next-dev-loop` (Next.js scaffolded, 16+) for dev-server errors, routes and
+single-route compiles; `metro-mcp` (Metro running) for the RN JS runtime —
+symbolicated traces, network bodies, render profiling; the shadcn MCP (if
+shadcn is adopted); `neon` (a real database); `sentry` **or** `eas-observe`,
+never both, at the first shipped build.
+
+## Settled decisions some skills will try to relitigate
+
+Two installed skills default to options the ADRs deliberately rejected. Treat a
+suggestion to use them as a proposal to reopen a closed decision, not as advice.
+
+- **`vercel:auth`** covers Clerk, Descope and Auth0. ADR 0007 chose Better Auth
+  precisely so user records stay in our database and the provider stays
+  replaceable. Clerk and Supabase Auth both hold the user table.
+- **`vercel:next-forge`** installs its own opinionated Turborepo `@repo/*`
+  layout. ADR 0001 specifies a different shape on purpose — shared logic, no
+  shared UI.
+
+Likewise, don't reach for Supabase, Prisma or Drizzle: ADRs 0004 and 0007 rule
+out all three.

@@ -1,6 +1,7 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true,
-    "skills@swmansion": true
+    "skills@swmansion": true,
+    "chrome-devtools-mcp@claude-plugins-official": true
   }
 }
