@@ -1,0 +1,134 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Waveger API",
+    "version": "v1",
+    "description": "The one API behind both Waveger apps. Evolves additively: routes and fields are added, never removed or repurposed."
+  },
+  "components": {
+    "schemas": {
+      "ApiStatus": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string",
+            "enum": [
+              "waveger-api"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "enum": [
+              "v1"
+            ]
+          },
+          "database": {
+            "type": "object",
+            "properties": {
+              "reachable": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "migrations": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "reachable",
+              "migrations"
+            ]
+          },
+          "charts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Chart"
+            }
+          }
+        },
+        "required": [
+          "service",
+          "version",
+          "database",
+          "charts"
+        ]
+      },
+      "Chart": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "compiler": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "compiler"
+        ]
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/v1/status": {
+      "get": {
+        "tags": [
+          "Service"
+        ],
+        "summary": "Service and database status",
+        "description": "Confirms the API is running, that it can reach Postgres, and which migrations that database has had applied.",
+        "responses": {
+          "200": {
+            "description": "The service is up and the database is reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiStatus"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The service is up but the database is not reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

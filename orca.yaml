@@ -14,10 +14,10 @@ scripts:
 
     # Secrets and local approvals are gitignored, so a fresh worktree starts
     # without them. Carry them across from the primary checkout.
-    #   .env / .env.local              — APIFY_TOKEN, DATABASE_URL (vercel env pull)
+    #   .env.local                     — everything: vercel env pull, plus APIFY_TOKEN
     #   .claude/settings.local.json    — this project's MCP approvals
     #   .vercel/                       — the Vercel project link
-    for f in .env .env.local .claude/settings.local.json; do
+    for f in .env.local .claude/settings.local.json; do
       if [ -f "$ORCA_ROOT_PATH/$f" ]; then
         mkdir -p "$(dirname "$f")"
         cp "$ORCA_ROOT_PATH/$f" "$f"
@@ -27,8 +27,6 @@ scripts:
       cp -R "$ORCA_ROOT_PATH/.vercel" .vercel
     fi
 
-    # Install only once there is something to install. Until WAV-8 lands there
-    # is no package.json, and an unguarded install would fail every worktree.
     if [ -f package.json ]; then
       if [ -f pnpm-lock.yaml ]; then
         pnpm install --frozen-lockfile

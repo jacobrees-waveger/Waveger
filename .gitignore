@@ -12,4 +12,10 @@
 
 # Vercel project link (machine-local; carried into worktrees by orca.yaml)
 .vercel
-.env*
+
+# Dependencies and build output
+node_modules/
+.next/
+.expo/
+dist/
+*.tsbuildinfo
