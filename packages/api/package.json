@@ -1,0 +1,27 @@
+{
+  "name": "@waveger/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "openapi": "tsx src/emit-openapi.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "catalog:",
+    "@waveger/db": "workspace:*",
+    "@waveger/domain": "workspace:*",
+    "hono": "catalog:",
+    "kysely": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

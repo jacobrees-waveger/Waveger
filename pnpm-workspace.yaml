@@ -1,0 +1,38 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Native binaries these two fetch at install time. esbuild backs tsx and
+# Vitest; unrs-resolver backs the import resolver eslint-config-next uses.
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+
+# One version of each shared dependency, declared once. Workspaces reference
+# these with `catalog:` so the web app, the native app and the packages can
+# never drift onto different copies of TypeScript, Zod or the pg driver.
+catalog:
+  '@hono/zod-openapi': ^1.5.1
+  '@types/node': ^24.10.1
+  '@types/pg': ^8.20.4
+  eslint: ^9.39.5
+  hono: ^4.13.0
+  kysely: ^0.29.4
+  pg: ^8.22.0
+  tsx: ^4.23.9
+  typescript: 6.0.3
+  typescript-eslint: ^8.66.0
+  vitest: ^4.1.10
+  zod: ^4.4.3
+
+minimumReleaseAgeExclude:
+  - '@expo/cli@57.0.13'
+  - '@expo/config-plugins@57.0.7'
+  - babel-preset-expo@57.0.6
+  - expo-asset@57.0.9
+  - expo-file-system@57.0.2
+  - expo-modules-core@57.0.10
+  - expo-router@57.0.11
+  - expo-symbols@57.0.2
+  - expo@57.0.11
+  - tsx@4.23.9

@@ -1,0 +1,32 @@
+{
+  "name": "@waveger/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@waveger/api": "workspace:*",
+    "@waveger/api-client": "workspace:*",
+    "@waveger/db": "workspace:*",
+    "@waveger/domain": "workspace:*",
+    "hono": "catalog:",
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "catalog:",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "catalog:",
+    "eslint-config-next": "16.3.0",
+    "tailwindcss": "^4",
+    "typescript": "catalog:"
+  }
+}

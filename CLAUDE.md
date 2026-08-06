@@ -4,8 +4,26 @@ A music charts product with a fantasy-sports-style game played on top of it.
 Waveger consumes externally published charts; it never compiles its own.
 
 Read `CONTEXT.md` for the domain language and `docs/adr/` for the decisions —
-several deliberately reject the obvious option. Tooling research lives in
-`docs/research/`.
+several deliberately reject the obvious option. `README.md` has the layout and
+the commands. Tooling research lives in `docs/research/`.
+
+```
+apps/web    Next.js — and the API is mounted inside it
+apps/native Expo
+packages/   domain · db · api · api-client — shared logic and types, never UI
+```
+
+```bash
+pnpm dev            pnpm test        # real Postgres, schema per test
+pnpm dev:native     pnpm typecheck   # every workspace
+pnpm db:migrate     pnpm lint        # includes the ADR 0001 import boundary
+pnpm openapi                         # re-emit packages/api/openapi.json
+```
+
+Nothing in `packages/` may import `next/*`, `expo-*`, `react-native` or React
+(ADR 0001). Two things stop you rather than one: those packages don't declare
+them, so pnpm's isolated installs make the import unresolvable and `tsc` fails;
+ESLint then turns that into a sentence saying why.
 
 ## Engineering principles
 
@@ -32,11 +50,12 @@ several deliberately reject the obvious option. Tooling research lives in
 | | |
 |---|---|
 | Repo | Monorepo, two apps at equal priority, sharing domain types, scoring rules, the chart client and design tokens — **not** UI. Screens are written twice (ADR 0001) |
-| Web | Next.js, App Router |
-| Native | Expo, React Native on the New Architecture |
-| API | Hono, mounted at `app/api/[[...route]]/route.ts` inside the Next.js deployment. Handlers take a Web-standard `Request` and import nothing from `next/*` (ADR 0006) |
-| Database access | Kysely — a typed query builder, **not** an ORM (ADR 0004) |
-| Database | Postgres. Host not yet chosen |
+| Monorepo tooling | pnpm workspaces. **No** Turborepo, and packages ship `src/` rather than a `dist/`. Shared versions are pinned once in the `catalog:` block of `pnpm-workspace.yaml` (ADR 0010) |
+| Web | Next.js 16, App Router, Turbopack, Tailwind 4, in `apps/web` |
+| Native | Expo SDK 57, React Native 0.86 on the New Architecture, Expo Router, in `apps/native` |
+| API | Hono in `packages/api`, mounted at `apps/web/src/app/api/[[...route]]/route.ts`. Handlers take a Web-standard `Request` and import nothing from `next/*` (ADR 0006). Zod on the routes, OpenAPI at `/api/v1/openapi.json`, committed to `packages/api/openapi.json` |
+| Database access | Kysely — a typed query builder, **not** an ORM (ADR 0004). Hand-written SQL migrations in `packages/db/migrations`, applied by `pnpm db:migrate` |
+| Database | Postgres |
 | Auth | Better Auth against our own Postgres — cookie sessions on web, bearer tokens on native (ADR 0007) |
 | Chart positions | Apify actor scraping the UK Official Singles Chart (ADR 0002) |
 | Song media | Apple Music API — artwork, previews, catalogue metadata. Joined to chart data on artist and title strings (ADR 0002) |
@@ -109,33 +128,49 @@ suggestion to use them as a proposal to reopen a closed decision, not as advice.
   replaceable. Clerk and Supabase Auth both hold the user table.
 - **`vercel:next-forge`** installs its own opinionated Turborepo `@repo/*`
   layout. ADR 0001 specifies a different shape on purpose — shared logic, no
-  shared UI.
+  shared UI, and ADR 0010 declines Turborepo outright.
 
 Likewise, don't reach for Supabase, Prisma or Drizzle: ADRs 0004 and 0007 rule
-out all three.
+out all three. And don't add a build step to `packages/*`: they export
+`src/index.ts` deliberately, so there is no `dist/` to go stale (ADR 0010).
 
 ## Local setup
+
+`./scripts/setup.sh` is an interactive wizard covering the whole path: toolchain
+checks, `vercel login`, `vercel link`, the env pull, install, migrations, and a
+test run to prove it worked. Everything below is what it does.
 
 Environment variables are **injected by Vercel**, not hand-written. Neon sets
 sixteen of them on the project; two matter:
 
 - `DATABASE_URL` — pooled (`-pooler` host). What the app uses.
-- `DATABASE_URL_UNPOOLED` — direct. What migrations use. Running migrations on
-  the pooled string fails intermittently under load rather than immediately.
+- `DATABASE_URL_UNPOOLED` — direct. What migrations and the test harness use.
+  Running either on the pooled string fails intermittently under load rather
+  than immediately, and the pooler does not preserve the `search_path` that
+  per-test isolation depends on.
 
 ```bash
 vercel env pull .env.local     # both, plus the PG*/POSTGRES_* aliases
+pnpm install
+pnpm db:migrate
 ```
+
+`vercel env pull` **rewrites `.env.local` wholesale**. `APIFY_TOKEN` currently
+lives there by hand and is not set on the Vercel project, so a pull deletes it.
 
 `.env.local` is gitignored. `.env.example` deliberately is **not** — it
 documents the required variables and belongs in the repo.
 
+Next only reads `.env*` from its own directory, so `apps/web/next.config.ts`
+loads the repository-root `.env.local` before the server starts. Expo reads
+`apps/native/.env.local`, and only `EXPO_PUBLIC_*` reaches the bundle.
+
 ## Worktrees
 
-`orca.yaml` runs on every `orca worktree create`. It copies `.env`,
-`.env.local`, `.claude/settings.local.json` and `.vercel/` from the primary
-checkout — none of which travel with a git worktree — and assigns the worktree
-its own web and Metro ports.
+`orca.yaml` runs on every `orca worktree create`. It copies `.env.local`,
+`.claude/settings.local.json` and `.vercel/` from the primary checkout — none of
+which travel with a git worktree — installs dependencies, and assigns the
+worktree its own web and Metro ports.
 
 That last part is not a nicety. Metro hard-defaults to 8081 and Orca allocates
 nothing, so without it a second worktree running `expo start` silently attaches
