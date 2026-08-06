@@ -4,8 +4,12 @@
 # Local, per-machine Claude Code settings (project settings are tracked)
 .claude/settings.local.json
 
-# Secrets — never commit. `.env.example` is deliberately NOT ignored:
-# it documents the required variables and belongs in the repo.
+# Secrets — never commit. `.env.example` is deliberately NOT ignored: it
+# documents the required variables and belongs in the repo.
+#
+# `vercel env pull` appends a blanket `.env*` here every time it runs, which
+# would shadow `.env.example`. Delete that line when it reappears — the file is
+# already tracked, so git keeps it either way, but the rule is still wrong.
 .env
 .env.local
 .env.*.local

@@ -51,17 +51,8 @@ export async function migrateToLatest(
 
     // Held for the session; released when the client disconnects below.
     await client.query('select pg_advisory_lock($1)', [ADVISORY_LOCK_KEY])
-    await client.query(`
-      create table if not exists schema_migration (
-        name       text primary key,
-        applied_at timestamptz not null default now()
-      )
-    `)
 
-    const { rows } = await client.query<{ name: string }>(
-      'select name from schema_migration',
-    )
-    const applied = new Set(rows.map((row) => row.name))
+    const applied = await appliedMigrations(client)
 
     const pending = (await readdir(migrationsDirectory))
       .filter((file) => file.endsWith('.sql'))
@@ -90,5 +81,25 @@ export async function migrateToLatest(
     return ran
   } finally {
     await client.end()
+  }
+}
+
+/** Postgres `undefined_table`. */
+const UNDEFINED_TABLE = '42P01'
+
+/**
+ * The ledger is itself the first migration, so on a virgin database the table
+ * this reads does not exist yet. That is the only situation in which its
+ * absence is not an error, and it is indistinguishable from "nothing applied".
+ */
+async function appliedMigrations(client: pg.Client): Promise<Set<string>> {
+  try {
+    const { rows } = await client.query<{ name: string }>(
+      'select name from schema_migration',
+    )
+    return new Set(rows.map((row) => row.name))
+  } catch (error) {
+    if ((error as { code?: string }).code !== UNDEFINED_TABLE) throw error
+    return new Set()
   }
 }

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/api';
-import { ApiError } from '@waveger/api-client';
+import { describeError } from '@waveger/api-client';
 import type { ApiStatus } from '@waveger/domain';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -21,13 +21,7 @@ export function Status() {
       .then((status) => setState({ kind: 'loaded', status }))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        setState({
-          kind: 'failed',
-          message:
-            error instanceof ApiError
-              ? `${error.code}: ${error.message}`
-              : String(error),
-        });
+        setState({ kind: 'failed', message: describeError(error) });
       });
 
     return () => controller.abort();
@@ -52,13 +46,11 @@ export function Status() {
             label="Service"
             value={`${state.status.service} ${state.status.version}`}
           />
+          <Row label="Database" value="reachable" />
           <Row
-            label="Database"
-            value={`reachable, ${state.status.database.migrations.length} migration(s) applied`}
+            label="Migrations"
+            value={state.status.database.migrations.join('\n')}
           />
-          {state.status.charts.map((chart) => (
-            <Row key={chart.slug} label="Chart" value={chart.name} />
-          ))}
         </View>
       )}
     </SafeAreaView>

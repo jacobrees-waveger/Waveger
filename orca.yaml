@@ -39,17 +39,23 @@ scripts:
     # ports. Without this, a second worktree's `expo start` silently attaches to
     # the FIRST worktree's bundler — you then test the wrong code with no error.
     # Derive a stable per-worktree pair from the worktree directory name.
+    #
+    # These go in .env, NOT .env.local: `vercel env pull .env.local` rewrites
+    # that file wholesale, so ports written there vanish the first time anyone
+    # refreshes their secrets — reintroducing the silent-wrong-bundler failure
+    # this block exists to prevent. .env is also the right home on its own
+    # terms: it is the one env file that must NOT be copied between worktrees.
     slot=$(( $(basename "$ORCA_WORKTREE_PATH" | cksum | cut -d' ' -f1) % 40 ))
     web_port=$(( 3000 + slot ))
     metro_port=$(( 8100 + slot ))
-    touch .env.local
-    if ! grep -q '^PORT=' .env.local 2>/dev/null; then
+    touch .env
+    if ! grep -q '^PORT=' .env 2>/dev/null; then
       {
-        echo ""
-        echo "# Per-worktree ports, written by orca.yaml setup"
+        echo "# Per-worktree ports, written by orca.yaml setup. Not copied"
+        echo "# between worktrees, and not touched by 'vercel env pull'."
         echo "PORT=$web_port"
         echo "RCT_METRO_PORT=$metro_port"
-      } >> .env.local
+      } >> .env
     fi
 
     echo "worktree ready — web :$web_port, metro :$metro_port"

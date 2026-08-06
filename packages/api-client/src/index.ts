@@ -27,6 +27,13 @@ export class ApiError extends Error {
   }
 }
 
+/** One line fit to show a person, whatever went wrong. */
+export function describeError(error: unknown): string {
+  return error instanceof ApiError
+    ? `${error.code}: ${error.message}`
+    : String(error)
+}
+
 export interface ApiClient {
   getStatus(options?: { signal?: AbortSignal }): Promise<ApiStatus>
 }
@@ -34,16 +41,13 @@ export interface ApiClient {
 export interface CreateApiClientOptions {
   /** Origin the API is served from, e.g. `https://waveger.vercel.app`. */
   baseUrl: string
-  /** Injectable for tests; defaults to the platform `fetch`. */
-  fetch?: typeof globalThis.fetch
 }
 
 export function createApiClient(options: CreateApiClientOptions): ApiClient {
   const origin = options.baseUrl.replace(/\/+$/, '')
-  const doFetch = options.fetch ?? globalThis.fetch
 
   async function request(path: string, signal?: AbortSignal): Promise<unknown> {
-    const response = await doFetch(`${origin}/api/v1${path}`, {
+    const response = await fetch(`${origin}/api/v1${path}`, {
       headers: { accept: 'application/json' },
       signal,
     })
@@ -56,7 +60,7 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
         parsed.success ? parsed.data.error : 'unexpected_response',
         parsed.success
           ? parsed.data.message
-          : `${origin}${path} responded ${response.status}`,
+          : `${origin}/api/v1${path} responded ${response.status}`,
       )
     }
 
