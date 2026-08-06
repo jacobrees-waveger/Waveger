@@ -11,7 +11,7 @@
     "build": "pnpm --filter @waveger/web build",
     "db:migrate": "pnpm --filter @waveger/db migrate",
     "openapi": "pnpm --filter @waveger/api openapi",
-    "lint": "eslint .",
+    "lint": "eslint . && pnpm --filter @waveger/web lint && pnpm --filter @waveger/native lint",
     "typecheck": "pnpm -r --parallel typecheck",
     "test": "vitest run"
   },
