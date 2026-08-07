@@ -78,15 +78,18 @@ a swap of `apps/web/src/app/api/[[...route]]/route.ts`, not a rewrite.
 diff in review. A test fails if it drifts from what the routes generate; run
 `pnpm openapi` to update it.
 
-Two more routes sit under `/api/internal` and are deliberately **absent** from
+Three more routes sit under `/api/internal` and are deliberately **absent** from
 that document (ADR 0011). They serve the operator, promise nothing to any
 client, and are free to change — they are validated like everything else, but
 nothing in the field calls them, so nothing is promised.
 
-- `POST /api/internal/ingest` — `{"chart": "uk-singles", "date": "2026-07-31"}`
+- `GET /api/internal/ingest/{chart}` — the Chart Week due now. What the schedule
+  fires, and a GET because that is all Vercel Cron sends (ADR 0013)
+- `POST /api/internal/ingest` — `{"chart": "uk-singles", "date": "2026-07-31"}`,
+  optionally `"refetch": true` to fetch a week the archive already holds
 - `GET /api/internal/runs?chart=…&date=…` — what happened when it ran
 
-Both need the shared secret, as `Authorization: Bearer $CRON_SECRET`. Absent
+All three need the shared secret, as `Authorization: Bearer $CRON_SECRET`. Absent
 from the OpenAPI document is not a security measure — it is one guessable path
 — and these routes write to the archive, so the secret is what actually closes
 them. A deployment that has no `CRON_SECRET` answers 503 on both rather than
@@ -94,10 +97,11 @@ serving them: a secret nobody set is not a secret everybody passes. The public
 `/api/v1` is unaffected either way.
 
 `Authorization: Bearer` is the scheme because it is what Vercel Cron sends by
-itself when `CRON_SECRET` is set, so putting ingestion on a schedule (WAV-11)
-is a cron entry and no caller code.
+itself when `CRON_SECRET` is set, so ingestion runs on a schedule with a cron
+entry and no caller code of its own.
 
 ```bash
+# The Chart Week the schedule missed, fetched by hand.
 curl -X POST "$WAVEGER_URL/api/internal/ingest" \
   -H "authorization: Bearer $CRON_SECRET" \
   -H 'content-type: application/json' \
@@ -108,10 +112,25 @@ curl -X POST "$WAVEGER_URL/api/internal/ingest" \
 
 Waveger consumes the UK Official Singles Chart and never compiles its own. All
 chart data enters through one `ChartSource` (ADR 0002), so replacing where it
-comes from is an adapter and not a rewrite. Today that implementation replays a
-stored run of the Apify actor — the verified run of the Chart Week dated
-2026-07-31, kept verbatim in `packages/api/src/chart/fixtures/`. The live actor
-arrives later and changes nothing above the seam.
+comes from is an adapter and not a rewrite. That implementation is an Apify
+actor scraping the Official Charts site, and everything that knows the actor
+exists is inside `packages/api/src/chart/apify-source.ts` — one file, needing
+`APIFY_TOKEN`. Tests replay two runs of it kept verbatim in
+`packages/api/src/chart/fixtures/`.
+
+It runs **on a schedule**: a Vercel cron entry fires
+`GET /api/internal/ingest/uk-singles` at 06:00 UTC each Saturday, and the route
+works out which Chart Week that is — the most recent Friday. A GET because that
+is the only request Vercel Cron makes, and Saturday because the Chart goes live
+on Friday evening (ADR 0013).
+
+The actor fails about one run in five, so a failed fetch is **tried three times**
+with a doubling backoff, each attempt resuming where the last stopped rather than
+paying again for records already received. When all three fail the run is
+recorded as failed and the schedule carries on (ADR 0014). A Chart Week the
+archive already holds is not fetched at all — Held means the week *and its
+Entries*, never merely that a run happened — and `"refetch": true` on the POST is
+the only way to fetch one again.
 
 Ingestion fetches a Chart Week, judges it **whole**, and only then persists it.
 A week is refused unless it has exactly the Chart's Position count, contiguous

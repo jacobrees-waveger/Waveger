@@ -22,7 +22,7 @@ document a client generates from would describe routes no client may call.
 A contract that includes things nobody is allowed to use teaches readers to
 ignore it.
 
-Zod validation is **not** narrowed. Both operator routes validate their input,
+Zod validation is **not** narrowed. Every operator route validates its input,
 and `POST /api/internal/ingest` is where the request-side half of that rule was
 first exercised at all — a status endpoint has no honest input.
 

@@ -1,11 +1,17 @@
 import { OpenAPIHono } from '@hono/zod-openapi'
 import type { Database } from '@waveger/db'
 import type { Kysely } from 'kysely'
+import { defaultRetryPolicy, type RetryPolicy } from './chart/retry'
 import type { ChartSource } from './chart/source'
 import { errorBody, type ApiEnv } from './context'
 import { requireOperatorSecret } from './operator-secret'
 import { latestChartWeekHandler, latestChartWeekRoute } from './routes/chart-weeks'
-import { ingestHandler, ingestRoute } from './routes/ingest'
+import {
+  ingestHandler,
+  ingestRoute,
+  scheduledIngestHandler,
+  scheduledIngestRoute,
+} from './routes/ingest'
 import { runsHandler, runsRoute } from './routes/runs'
 import { statusHandler, statusRoute } from './routes/status'
 
@@ -57,6 +63,12 @@ export interface CreateApiOptions {
    * them rather than serving them to the internet.
    */
   operatorSecret: string | undefined
+  /**
+   * How a failed fetch is tried again. Optional because the answer is the same
+   * for every deployment; it is a parameter at all so the tests can exercise
+   * retry, resume and exhaustion without waiting out the backoff.
+   */
+  ingestionRetry?: RetryPolicy
 }
 
 /**
@@ -94,6 +106,7 @@ function buildOperatorApi(operatorSecret: string | undefined) {
   operator.use('*', requireOperatorSecret(operatorSecret))
 
   operator.openapi(ingestRoute, ingestHandler)
+  operator.openapi(scheduledIngestRoute, scheduledIngestHandler)
   operator.openapi(runsRoute, runsHandler)
 
   return operator
@@ -114,6 +127,7 @@ export function createApi(options: CreateApiOptions) {
   app.use('*', async (c, next) => {
     c.set('db', options.db)
     c.set('chartSource', options.chartSource)
+    c.set('ingestionRetry', options.ingestionRetry ?? defaultRetryPolicy)
     await next()
   })
 

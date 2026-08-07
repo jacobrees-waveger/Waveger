@@ -1,6 +1,7 @@
 import type { Database } from '@waveger/db'
 import type { ApiError, ApiErrorCode } from '@waveger/domain'
 import type { Kysely } from 'kysely'
+import type { RetryPolicy } from './chart/retry'
 import type { ChartSource } from './chart/source'
 
 /**
@@ -15,6 +16,12 @@ export interface ApiEnv {
   Variables: {
     db: Kysely<Database>
     chartSource: ChartSource
+    /**
+     * How many times a failed fetch is tried again, and how long it waits in
+     * between. Here rather than inside ingestion so a test can drive the retry
+     * without also driving a clock — the same seam, for the same reason.
+     */
+    ingestionRetry: RetryPolicy
   }
 }
 

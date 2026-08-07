@@ -12,20 +12,19 @@ import { errorBody, type ApiEnv } from './context'
  * Postgres was Vercel Authentication — a deployment setting, not a decision this
  * repository had made, and it was turned off on 2026-08-07.
  *
- * `POST /api/internal/ingest` is the reason for the urgency. It writes an
- * `ingestion_run` row on every call including the ones that hold nothing, so an
- * open route is unbounded writes; and once WAV-11 puts the live Apify actor
- * behind the `ChartSource`, each call is $0.20 against an account capped at
- * $5/month (ADR 0002). Roughly 25 requests would exhaust the month.
+ * Ingestion is the reason for the urgency. It writes an `ingestion_run` row on
+ * every call that reaches the source, so an open route is unbounded writes —
+ * and every call that fetches is $0.20 against an account capped at $5/month
+ * (ADR 0002). Roughly 25 requests would exhaust the month.
  */
 
 /**
  * `Authorization: Bearer <secret>`, which is what Vercel Cron sends by itself.
  *
  * That is the whole reason for the scheme. Vercel invokes a scheduled path with
- * `Authorization: Bearer ${CRON_SECRET}` when that variable is set, so WAV-11
- * puts ingestion on a schedule by writing a cron entry and nothing else. A
- * header of our own would have meant a second secret and a hand-rolled caller.
+ * `Authorization: Bearer ${CRON_SECRET}` when that variable is set, so ingestion
+ * runs on a schedule through a cron entry and nothing else (ADR 0013). A header
+ * of our own would have meant a second secret and a hand-rolled caller.
  */
 const BEARER = /^Bearer (.+)$/
 

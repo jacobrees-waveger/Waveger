@@ -17,19 +17,24 @@ import { createFixtureChartSource } from '../chart/fixture-source'
  * a fact about two Chart Weeks sitting next to each other in the archive and
  * there is nothing to assert until they are both in it.
  *
- * The two fixtures are adjacent on purpose. 2026-07-31 is the verified run ADR
- * 0002 checked by hand; 2026-07-24 is hand-authored to sit exactly one week
- * behind it, and the numbers below are what that pairing produces:
+ * The two fixtures are adjacent on purpose, and both are real runs of the
+ * actor: 2026-07-31 is the one ADR 0002 checked by hand, and 2026-07-24 is the
+ * Chart Week before it. The numbers below are what that pairing produces:
  *
  *     37 climbs · 41 falls · 11 non-movers · 11 debuts · 11 exits
  *
- * Wherever the actor could tell us where a Song stood, the earlier week says
- * the same thing: the 37 climbers and 11 non-movers keep the `last_week` the
- * verified run reported for them, and the 11 debuts are the Songs it marks
- * `is_new`. So the derivation below agrees with two fields it never reads. The
- * 41 descenders are the ones it could not tell us about — `last_week` is null
- * for every one of them (ADR 0002) — and their earlier Positions are invented,
- * which is exactly the gap this whole ticket exists to fill.
+ * The derivation agrees with two fields it never reads. Every climber and
+ * non-mover lands where the later run's `last_week` says it should, and the 11
+ * debuts are exactly the Songs it marks `is_new` — which is worth having,
+ * because those fields are the Chart Compiler's own account of the same week
+ * and this is Waveger's, arrived at from its archive alone.
+ *
+ * The falls are the half no field could have told us. `last_week` is null for
+ * every descending Entry (ADR 0002), so before the live source existed, the
+ * earlier week's descending Positions were invented and the numbers here were
+ * invented with them. Swapping the real week in left every aggregate above
+ * untouched and changed two things: the biggest fall of the week, and all
+ * eleven Songs that left.
  */
 
 let database: TestDatabase
@@ -145,9 +150,13 @@ test.each([
     movement: { kind: 'moved', positionsGained: 22 },
   },
   {
-    position: 75,
-    of: "the week's biggest fall, from Position 56",
-    movement: { kind: 'moved', positionsGained: -19 },
+    // A fall of 53 Positions, and the actor reports it as `last_week: null`
+    // like every other one. Its magnitude exists only because Waveger holds
+    // the week before — which is the whole argument of ADR 0002's second
+    // defect, in one Entry.
+    position: 94,
+    of: "the week's biggest fall, from Position 41",
+    movement: { kind: 'moved', positionsGained: -53 },
   },
   {
     position: 16,
@@ -233,17 +242,19 @@ test('the Songs that left the Chart are returned, ordered by the Position they h
   expect(
     week.exits.map((exit) => [exit.previousPosition, exit.title, exit.artist]),
   ).toEqual([
-    [86, 'SALT AND SMOKE', 'THE HARBOUR LIGHTS'],
-    [87, 'PAPER MOONS', 'ELIZA VANCE'],
-    [88, 'NIGHT BUS HOME', 'KOJO ADESINA'],
-    [89, 'CALLING CARD', 'THE LOST SIGNAL'],
-    [92, "SOMEONE ELSE'S SUMMER", 'MARA DELACROIX'],
-    [94, 'LOW TIDE', 'BRIONY QUAYLE'],
-    [95, 'CHALK OUTLINE', 'THE FEN'],
-    [96, 'RUNNING THE RED', 'DESSA HOLLOWAY'],
-    [97, 'TELEGRAM', 'PIETRO NALDI'],
-    [98, 'WINTER PALACE', 'THE SEVENTH FLOOR'],
-    [99, 'HALF A HEART AWAY', 'NOOR HADDAD'],
+    // Not all of them from the foot of the Chart: an Exit is the absence of an
+    // Entry and owes nothing to where the Song stood.
+    [36, 'NORMAL', 'BTS'],
+    [55, 'GOOD REASON', 'GRACIE ABRAMS'],
+    [56, 'APERTURE', 'HARRY STYLES'],
+    [88, 'STICK SEASON', 'NOAH KAHAN'],
+    [89, 'JUST THE WAY YOU ARE', 'MILKY'],
+    [94, 'END OF BEGINNING', 'DJO'],
+    [95, 'HUMAN NATURE', 'MICHAEL JACKSON'],
+    [96, 'DANCETERIA', 'MADONNA'],
+    [97, 'MANCHILD', 'SABRINA CARPENTER'],
+    [98, 'RUBBERZ', 'FENIX FLEXIN/PURPS ON THE BEAT'],
+    [99, 'SLICK', 'VICTONY'],
   ])
 })
 

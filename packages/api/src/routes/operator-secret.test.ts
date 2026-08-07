@@ -9,8 +9,7 @@ import { createFixtureChartSource } from '../chart/fixture-source'
  * Every other operator test sends the secret and asserts what the route does.
  * This file is the other half: what happens when it is wrong, absent, or was
  * never configured. It matters more than a guard usually would, because the
- * routes behind it write to the archive and — once WAV-11 puts the live Apify
- * actor behind the `ChartSource` — spend money doing it.
+ * routes behind it write to the archive and spend money doing it.
  */
 
 let database: TestDatabase
@@ -79,7 +78,7 @@ test.each(refused)('ingestion offering $offering is refused', async ({ headers }
 /**
  * The refusal has to happen before the handler, not inside it. A 401 that
  * still wrote an `ingestion_run` row would be a rate-limit-free way to fill
- * the table, and after WAV-11 a way to spend the Apify budget.
+ * the table, and a way to spend the Apify budget.
  */
 test('a refused call reaches nothing behind the guard', async () => {
   await ingest(configured(), {})

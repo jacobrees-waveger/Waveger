@@ -33,6 +33,35 @@ export async function findChart(
 }
 
 /**
+ * Whether Waveger holds this Chart Week with every Entry on it (`CONTEXT.md`).
+ *
+ * The whole definition, in one place, and it takes the Chart because only the
+ * Chart says how many Entries "every" is. A Chart Week row with fewer under it
+ * is not Held: to a visitor it is a week Waveger does not have.
+ *
+ * Deliberately never asked of `ingestion_run`. A week that was fetched and
+ * refused has runs and no Entries; reading the runs would call it Held, decline
+ * to fetch it again, and leave that hole in the archive for ever.
+ */
+export async function isChartWeekHeld(
+  db: Kysely<Database>,
+  id: ChartWeekId,
+  chart: ArchivedChart,
+): Promise<boolean> {
+  const held = await db
+    .selectFrom('chart_week')
+    .leftJoin('entry', 'entry.chart_week_id', 'chart_week.id')
+    .select((eb) => eb.fn.count<string>('entry.position').as('entries'))
+    .where('chart_week.chart_slug', '=', id.chart)
+    .where('chart_week.week_date', '=', id.date)
+    .executeTakeFirst()
+
+  // `count` comes back as a string: Postgres counts in bigint, and the pg
+  // driver will not silently narrow one to a JS number.
+  return Number(held?.entries ?? 0) === chart.positionCount
+}
+
+/**
  * The most recently held Chart Week, or null when Waveger holds none.
  *
  * "Most recent" is by the Chart Compiler's published date and not by when

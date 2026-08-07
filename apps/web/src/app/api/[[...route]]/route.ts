@@ -1,4 +1,4 @@
-import { createApi, createFixtureChartSource } from '@waveger/api'
+import { createApi, createApifyChartSource } from '@waveger/api'
 import { createDb } from '@waveger/db'
 import { handle } from 'hono/vercel'
 
@@ -21,20 +21,21 @@ function getApi() {
       )
     }
 
-    // The pooled connection string: every request runs in a serverless
-    // function, so the pooler is doing the connection management (ADR 0008).
-    // A small local pool on top of it keeps one function instance from opening
-    // a connection per concurrent request.
-    // The only place that decides where chart data comes from. WAV-11 swaps
-    // the stored run for the live Apify actor here and nowhere else — that is
-    // what the `ChartSource` seam is for (ADR 0002).
-    // Not thrown for when it is missing, unlike DATABASE_URL. A deployment
-    // without it still serves the public chart; only `/api/internal/*` closes,
-    // which is the safe direction and keeps a misconfigured operator secret
-    // from taking the website down with it.
     api = createApi({
+      // The pooled connection string: every request runs in a serverless
+      // function, so the pooler is doing the connection management (ADR 0008).
+      // A small local pool on top of it keeps one function instance from
+      // opening a connection per concurrent request.
       db: createDb({ connectionString, max: 5 }),
-      chartSource: createFixtureChartSource(),
+      // The only place that decides where chart data comes from — the whole
+      // point of the `ChartSource` seam (ADR 0002). Everything that knows an
+      // Apify actor exists is behind this call.
+      chartSource: createApifyChartSource({ token: process.env.APIFY_TOKEN }),
+      // Neither secret is thrown for when it is missing, unlike DATABASE_URL.
+      // A deployment without them still serves the public chart: the operator
+      // routes close, and a fetch fails and says why in the run log. That is
+      // the safe direction — a misconfigured operator does not take the
+      // website down with them.
       operatorSecret: process.env.CRON_SECRET,
     })
   }

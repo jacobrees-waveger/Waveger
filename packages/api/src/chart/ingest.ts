@@ -1,22 +1,29 @@
 import type { Database, IngestionFlag } from '@waveger/db'
 import type { ChartWeekId } from '@waveger/domain'
 import type { Kysely, Transaction } from 'kysely'
-import { findChart, type ArchivedChart } from './archive'
+import { findChart, isChartWeekHeld, type ArchivedChart } from './archive'
 import { songFingerprint } from './fingerprint'
+import { fetchChartWeekWithRetry, type RetryPolicy } from './retry'
 import type { ChartSource, SourceEntry } from './source'
 import { validateChartWeek } from './validate'
 
 /**
  * Fetch, judge, persist — the whole of ingestion.
  *
- * Every path through it ends in a row in `ingestion_run`, including the ones
- * that write nothing else, because a Chart Week Waveger does not hold needs an
- * explanation. Nothing enters the archive that has not been judged as a
- * complete week first.
+ * Every run that reaches the source ends in a row in `ingestion_run`, including
+ * the ones that write nothing else, because a Chart Week Waveger does not hold
+ * needs an explanation. Nothing enters the archive that has not been judged as
+ * a complete week first.
+ *
+ * A Chart Week that is already Held is the one path that records nothing, and
+ * it records nothing because nothing happened: no fetch, no judgement, no
+ * money. A week that is Held is its own explanation.
  */
 
 export type IngestionOutcome =
   | { kind: 'succeeded'; entries: number; flags: IngestionFlag[] }
+  /** Already in the archive with every Entry on it. The source was not asked. */
+  | { kind: 'already_held'; entries: number }
   /** The source answered, but not with a Chart Week. Nothing was written. */
   | { kind: 'rejected'; reason: string }
   /** The source did not answer at all. */
@@ -24,17 +31,36 @@ export type IngestionOutcome =
   /** No such Chart. There is nothing to record the run against. */
   | { kind: 'unknown_chart' }
 
+export interface IngestionOptions {
+  retry: RetryPolicy
+  /**
+   * Fetch the Chart Week even though it is Held, replacing what the archive
+   * has. The only way to, and asked for by hand: a Chart Week can be Held and
+   * wrong, but the schedule runs weekly and must not pay to re-fetch every week
+   * it already has.
+   */
+  refetch?: boolean
+}
+
 export async function ingestChartWeek(
   db: Kysely<Database>,
   source: ChartSource,
   id: ChartWeekId,
+  options: IngestionOptions,
 ): Promise<IngestionOutcome> {
   const chart = await findChart(db, id.chart)
   if (chart === null) return { kind: 'unknown_chart' }
 
+  // Asked before anything is fetched, because not fetching is the point: the
+  // schedule runs weekly against an actor that charges per record, and a week
+  // already in the archive costs nothing to skip.
+  if (options.refetch !== true && (await isChartWeekHeld(db, id, chart))) {
+    return { kind: 'already_held', entries: chart.positionCount }
+  }
+
   let fetched
   try {
-    fetched = await source.fetchChartWeek(id)
+    fetched = await fetchChartWeekWithRetry(source, id, options.retry)
   } catch (cause) {
     const reason = cause instanceof Error ? cause.message : String(cause)
     // Nothing was fetched, so there is nothing to store and nothing to flag.
