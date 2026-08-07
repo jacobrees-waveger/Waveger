@@ -14,13 +14,27 @@ import { ChartSourceError, type ChartSource } from '../chart/source'
 
 let database: TestDatabase
 
+/**
+ * The operator secret this file's API is built with, sent on every
+ * `/api/internal/*` call below. Real, not bypassed: the guard these tests run
+ * through is the one a deployment runs (ADR 0011).
+ */
+const OPERATOR_SECRET = 'test-operator-secret'
+
 const apiFor = (source = createFixtureChartSource()) =>
-  createApi({ db: database.db, chartSource: source })
+  createApi({
+    db: database.db,
+    chartSource: source,
+    operatorSecret: OPERATOR_SECRET,
+  })
 
 const ingest = (api: ReturnType<typeof createApi>, body: unknown) =>
   api.request('/api/internal/ingest', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${OPERATOR_SECRET}`,
+    },
     body: JSON.stringify(body),
   })
 
@@ -46,6 +60,7 @@ const runsFor = async (
 ) => {
   const response = await api.request(
     `/api/internal/runs?chart=${id.chart}&date=${id.date}`,
+    { headers: { authorization: `Bearer ${OPERATOR_SECRET}` } },
   )
   expect(response.status).toBe(200)
   const body = (await response.json()) as { runs: unknown[] }

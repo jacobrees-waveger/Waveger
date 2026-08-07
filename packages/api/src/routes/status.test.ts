@@ -18,7 +18,11 @@ let api: ReturnType<typeof createApi>
 
 beforeEach(async () => {
   database = await createTestDatabase()
-  api = createApi({ db: database.db, chartSource: createFixtureChartSource() })
+  api = createApi({
+    db: database.db,
+    chartSource: createFixtureChartSource(),
+    operatorSecret: undefined,
+  })
 })
 
 afterEach(async () => {

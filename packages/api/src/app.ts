@@ -3,6 +3,7 @@ import type { Database } from '@waveger/db'
 import type { Kysely } from 'kysely'
 import type { ChartSource } from './chart/source'
 import { errorBody, type ApiEnv } from './context'
+import { requireOperatorSecret } from './operator-secret'
 import { latestChartWeekHandler, latestChartWeekRoute } from './routes/chart-weeks'
 import { ingestHandler, ingestRoute } from './routes/ingest'
 import { runsHandler, runsRoute } from './routes/runs'
@@ -48,6 +49,14 @@ export interface CreateApiOptions {
   db: Kysely<Database>
   /** The one route by which chart data enters Waveger (ADR 0002). */
   chartSource: ChartSource
+  /**
+   * The shared secret `/api/internal/*` demands as `Authorization: Bearer`.
+   *
+   * Undefined is a state rather than an omission: the operator routes close
+   * instead of opening, so a deployment that never got the variable refuses
+   * them rather than serving them to the internet.
+   */
+  operatorSecret: string | undefined
 }
 
 /**
@@ -77,8 +86,12 @@ function buildPublicApi() {
   return v1
 }
 
-function buildOperatorApi() {
+function buildOperatorApi(operatorSecret: string | undefined) {
   const operator = validatedApp().basePath(OPERATOR_BASE_PATH)
+
+  // Before the routes, so it runs before them and covers every one that is
+  // added later without anyone having to remember to guard it.
+  operator.use('*', requireOperatorSecret(operatorSecret))
 
   operator.openapi(ingestRoute, ingestHandler)
   operator.openapi(runsRoute, runsHandler)
@@ -105,7 +118,7 @@ export function createApi(options: CreateApiOptions) {
   })
 
   app.route('/', buildPublicApi())
-  app.route('/', buildOperatorApi())
+  app.route('/', buildOperatorApi(options.operatorSecret))
 
   app.notFound((c) =>
     c.json(errorBody('not_found', `No route for ${c.req.path}`), 404),

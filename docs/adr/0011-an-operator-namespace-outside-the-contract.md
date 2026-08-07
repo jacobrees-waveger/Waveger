@@ -42,10 +42,31 @@ URL: `/api/v1/*` is the contract, `/api/internal/*` is not, and they differ by
 one path segment. Anything a client needs belongs in `v1` even when an operator
 also wants it.
 
-These routes are **unauthenticated today**, which is only acceptable because
-nothing is deployed to a public URL yet with data worth protecting. WAV-11 puts
-a shared secret in front of them along with the schedule. Until then, do not
-treat "not in the document" as "not reachable" — it is one guessable path.
+These routes are guarded by a **shared secret**, sent as
+`Authorization: Bearer $CRON_SECRET`. Do not treat "not in the document" as
+"not reachable": absence from the OpenAPI document hides a path, and a hidden
+path is still one guess away.
+
+That guard was originally scheduled for WAV-11, on the reasoning that nothing
+was deployed to a public URL yet with data worth protecting. That reasoning
+expired on 2026-08-07, when Vercel Authentication was turned off on the project
+so the deployment could be looked at without signing in. It is worth recording
+why, because the mistake is a general one: the routes had been protected all
+along by a **deployment setting nobody had decided on**, and a protection you
+did not choose is one you can remove without noticing what it was doing. Between
+that change and the secret landing, `POST /api/internal/ingest` was open to
+anyone who guessed the path.
+
+The scheme is `Authorization: Bearer` because Vercel Cron sends precisely that
+when `CRON_SECRET` is set, so WAV-11 puts ingestion on a schedule with a cron
+entry and no caller of its own. One secret, not two.
+
+A deployment holding no secret answers **503 on every operator route** rather
+than serving it. Failing closed is the whole point: the failure being guarded
+against is the one where the variable was never set and nobody noticed, so
+"missing" cannot be allowed to mean "open". The public `/api/v1` is unaffected
+and still serves, because a misconfigured operator secret should not take the
+website down with it.
 
 `GET /api/internal/runs` exists partly so that "recorded as a failed run" is
 observable through the API. The alternative was a test reading the

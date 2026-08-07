@@ -41,13 +41,27 @@ const twoWeeks = createFixtureChartSource({
   'uk-singles/2026-07-24': previousWeek,
 })
 
+/**
+ * The operator secret this file's API is built with, sent on every
+ * `/api/internal/*` call below. Real, not bypassed: the guard these tests run
+ * through is the one a deployment runs (ADR 0011).
+ */
+const OPERATOR_SECRET = 'test-operator-secret'
+
 const apiFor = (source = twoWeeks) =>
-  createApi({ db: database.db, chartSource: source })
+  createApi({
+    db: database.db,
+    chartSource: source,
+    operatorSecret: OPERATOR_SECRET,
+  })
 
 const ingest = (api: ReturnType<typeof createApi>, date: string) =>
   api.request('/api/internal/ingest', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${OPERATOR_SECRET}`,
+    },
     body: JSON.stringify({ chart: 'uk-singles', date }),
   })
 

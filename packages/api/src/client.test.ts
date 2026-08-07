@@ -29,6 +29,8 @@ beforeEach(async () => {
   const api = createApi({
     db: database.db,
     chartSource: createFixtureChartSource(),
+    // The client only ever calls `/api/v1`, which is public throughout.
+    operatorSecret: undefined,
   })
   received = []
 

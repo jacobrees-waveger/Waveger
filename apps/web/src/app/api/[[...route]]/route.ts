@@ -28,9 +28,14 @@ function getApi() {
     // The only place that decides where chart data comes from. WAV-11 swaps
     // the stored run for the live Apify actor here and nowhere else — that is
     // what the `ChartSource` seam is for (ADR 0002).
+    // Not thrown for when it is missing, unlike DATABASE_URL. A deployment
+    // without it still serves the public chart; only `/api/internal/*` closes,
+    // which is the safe direction and keeps a misconfigured operator secret
+    // from taking the website down with it.
     api = createApi({
       db: createDb({ connectionString, max: 5 }),
       chartSource: createFixtureChartSource(),
+      operatorSecret: process.env.CRON_SECRET,
     })
   }
   return api

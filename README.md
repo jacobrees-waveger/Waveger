@@ -81,12 +81,28 @@ diff in review. A test fails if it drifts from what the routes generate; run
 Two more routes sit under `/api/internal` and are deliberately **absent** from
 that document (ADR 0011). They serve the operator, promise nothing to any
 client, and are free to change — they are validated like everything else, but
-nothing in the field calls them, so nothing is promised. They are also
-unauthenticated until the shared secret arrives with the schedule, so treat
-"not in the document" as one guessable path rather than as unreachable.
+nothing in the field calls them, so nothing is promised.
 
 - `POST /api/internal/ingest` — `{"chart": "uk-singles", "date": "2026-07-31"}`
 - `GET /api/internal/runs?chart=…&date=…` — what happened when it ran
+
+Both need the shared secret, as `Authorization: Bearer $CRON_SECRET`. Absent
+from the OpenAPI document is not a security measure — it is one guessable path
+— and these routes write to the archive, so the secret is what actually closes
+them. A deployment that has no `CRON_SECRET` answers 503 on both rather than
+serving them: a secret nobody set is not a secret everybody passes. The public
+`/api/v1` is unaffected either way.
+
+`Authorization: Bearer` is the scheme because it is what Vercel Cron sends by
+itself when `CRON_SECRET` is set, so putting ingestion on a schedule (WAV-11)
+is a cron entry and no caller code.
+
+```bash
+curl -X POST "$WAVEGER_URL/api/internal/ingest" \
+  -H "authorization: Bearer $CRON_SECRET" \
+  -H 'content-type: application/json' \
+  -d '{"chart":"uk-singles","date":"2026-07-31"}'
+```
 
 ## Charts
 

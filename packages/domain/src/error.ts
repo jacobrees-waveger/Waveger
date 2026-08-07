@@ -35,6 +35,17 @@ const apiErrorCodes = [
   'chart_week_rejected',
   /** The `ChartSource` itself failed. Nothing was fetched to judge. */
   'chart_source_unavailable',
+  /**
+   * An operator route was called without the shared secret (ADR 0011). Never
+   * emitted by `/api/v1`, which is public and unauthenticated throughout.
+   */
+  'unauthorised',
+  /**
+   * An operator route was called on a deployment that holds no shared secret.
+   * Refused rather than served: a secret nobody configured is not a secret
+   * everybody passes.
+   */
+  'operator_unconfigured',
 ] as const
 
 export type ApiErrorCode = (typeof apiErrorCodes)[number]
