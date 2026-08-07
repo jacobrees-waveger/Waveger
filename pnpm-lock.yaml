@@ -209,6 +209,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.3
+      '@waveger/api-client':
+        specifier: workspace:*
+        version: link:../api-client
       tsx:
         specifier: 'catalog:'
         version: 4.23.9

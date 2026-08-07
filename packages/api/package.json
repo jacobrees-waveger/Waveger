@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@waveger/api-client": "workspace:*",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
