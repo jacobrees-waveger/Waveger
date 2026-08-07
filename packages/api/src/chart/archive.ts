@@ -1,7 +1,13 @@
-import type { Database, IngestionFlag } from '@waveger/db'
+import type {
+  Database,
+  IngestionFlag,
+  IngestionRunStatus,
+} from '@waveger/db'
 import type { ChartExit, ChartWeek, ChartWeekId } from '@waveger/domain'
 import type { Kysely } from 'kysely'
-import { movementOf, previousChartWeekDate } from './movement'
+import { chartWeeksFrom, previousChartWeekDate } from './cadence'
+import { movementOf } from './movement'
+import { chartWeekDueOn } from './schedule'
 
 /**
  * Reading the archive Waveger owns.
@@ -33,33 +39,168 @@ export async function findChart(
 }
 
 /**
- * Whether Waveger holds this Chart Week with every Entry on it (`CONTEXT.md`).
+ * The Chart Weeks Waveger holds with every Entry on them (`CONTEXT.md`),
+ * earliest first.
  *
- * The whole definition, in one place, and it takes the Chart because only the
- * Chart says how many Entries "every" is. A Chart Week row with fewer under it
- * is not Held: to a visitor it is a week Waveger does not have.
+ * The whole definition of Held, in one place, and it takes the Chart because
+ * only the Chart says how many Entries "every" is. A Chart Week row with fewer
+ * under it is not Held: to a visitor it is a week Waveger does not have.
  *
  * Deliberately never asked of `ingestion_run`. A week that was fetched and
  * refused has runs and no Entries; reading the runs would call it Held, decline
  * to fetch it again, and leave that hole in the archive for ever.
  */
-export async function isChartWeekHeld(
+export async function heldChartWeeks(
   db: Kysely<Database>,
-  id: ChartWeekId,
   chart: ArchivedChart,
-): Promise<boolean> {
-  const held = await db
+  date?: string,
+): Promise<string[]> {
+  let held = db
     .selectFrom('chart_week')
     .leftJoin('entry', 'entry.chart_week_id', 'chart_week.id')
-    .select((eb) => eb.fn.count<string>('entry.position').as('entries'))
-    .where('chart_week.chart_slug', '=', id.chart)
-    .where('chart_week.week_date', '=', id.date)
-    .executeTakeFirst()
+    .select('chart_week.week_date')
+    .where('chart_week.chart_slug', '=', chart.slug)
+    // Safe to group by the date rather than the row because `chart_week` is
+    // unique on (chart_slug, week_date) and the slug is already filtered, so
+    // one date here is one Chart Week and never two Charts' worth of Entries.
+    .groupBy('chart_week.week_date')
+    // Postgres counts in bigint, so this is compared in the database rather
+    // than in JavaScript: the pg driver hands a bigint back as a string, and
+    // `'100' === 100` is the sort of false that never announces itself.
+    .having((eb) =>
+      eb(eb.fn.count('entry.position'), '=', chart.positionCount),
+    )
+    .orderBy('chart_week.week_date', 'asc')
 
-  // `count` comes back as a string: Postgres counts in bigint, and the pg
-  // driver will not silently narrow one to a JS number.
-  return Number(held?.entries ?? 0) === chart.positionCount
+  if (date !== undefined) held = held.where('chart_week.week_date', '=', date)
+
+  return (await held.execute()).map((week) => week.week_date)
 }
+
+/** Whether Waveger holds this one Chart Week, by the definition above. */
+export async function isChartWeekHeld(
+  db: Kysely<Database>,
+  date: string,
+  chart: ArchivedChart,
+): Promise<boolean> {
+  return (await heldChartWeeks(db, chart, date)).length === 1
+}
+
+export interface ArchiveHealth {
+  /** Null until the Chart has been reached for at all: nothing is claimed yet. */
+  span: { from: string; to: string } | null
+  held: string[]
+  missing: string[]
+}
+
+/**
+ * Whether the archive is whole: what it claims, what it has, what it owes.
+ *
+ * The Span runs from the earliest Chart Week this Chart has been reached for to
+ * the Chart Week due now (`CONTEXT.md`). Both ends are deliberate, and both are
+ * the end that is easy to get wrong.
+ *
+ * It starts at the earliest week *reached for* rather than the earliest one
+ * Held, so that a week which was fetched and never landed still counts as owed.
+ * Held weeks alone would make the Span retreat past exactly the losses it
+ * exists to report: a backfill whose oldest week came back half-scraped would
+ * start the Span after the loss and call the archive clean, and a deployment
+ * whose first runs all failed would report holding nothing and Missing nothing,
+ * which is what a healthy new archive looks like too. ADR 0002 puts that at
+ * about one run in five.
+ *
+ * It ends at the week *due* rather than the last one Held for the mirror
+ * reason. Measured only between the weeks it has, an archive nobody has added
+ * to for a month is not full of holes, it is merely short — and short is
+ * invisible to anything that looks between the weeks it holds.
+ *
+ * The cost of reaching back to what was asked for is that a mistyped date is
+ * loud: a hand request for 1926-07-31 puts every week since in `missing`. That
+ * is the right way round. A wrong answer that is obviously wrong gets fixed,
+ * and the run history says in one line where the date came from; a Span that
+ * quietly stops short of a hole is a hole nobody ever hears about, and ADR 0002
+ * makes that one permanent.
+ */
+export async function archiveHealth(
+  db: Kysely<Database>,
+  chart: ArchivedChart,
+  now: Date,
+): Promise<ArchiveHealth> {
+  const [held, reached] = await Promise.all([
+    heldChartWeeks(db, chart),
+    reachedForWeeks(db, chart),
+  ])
+  if (reached === null) return { span: null, held: [], missing: [] }
+
+  // The later of the two, so the Span always contains everything it reports. A
+  // week reached for beyond the one due — a Friday backfilled before the
+  // Saturday cron fires — would otherwise leave `to` behind `from` entirely.
+  const due = chartWeekDueOn(now)
+  const span = {
+    from: reached.first,
+    to: reached.last > due ? reached.last : due,
+  }
+  const isHeld = new Set(held)
+
+  return {
+    span,
+    held,
+    missing: chartWeeksFrom(span.from, span.to).filter(
+      (week) => !isHeld.has(week),
+    ),
+  }
+}
+
+/**
+ * The first and last Chart Week this Chart has been reached for, held or not.
+ *
+ * Both tables, because they answer different halves of it: `chart_week` has the
+ * weeks that landed, `ingestion_run` the ones that were tried. A week that was
+ * refused every time it was fetched appears only in the second, and it is
+ * precisely the week the Span must not start after.
+ *
+ * Compared as strings, which is safe for exactly one reason worth stating: an
+ * ISO date sorts lexicographically the same way it sorts chronologically.
+ */
+async function reachedForWeeks(
+  db: Kysely<Database>,
+  chart: ArchivedChart,
+): Promise<{ first: string; last: string } | null> {
+  const [weeks, runs] = await Promise.all([
+    db
+      .selectFrom('chart_week')
+      .select((eb) => [
+        eb.fn.min<string | null>('week_date').as('first'),
+        eb.fn.max<string | null>('week_date').as('last'),
+      ])
+      .where('chart_slug', '=', chart.slug)
+      .executeTakeFirst(),
+    db
+      .selectFrom('ingestion_run')
+      .select((eb) => [
+        eb.fn.min<string | null>('week_date').as('first'),
+        eb.fn.max<string | null>('week_date').as('last'),
+      ])
+      .where('chart_slug', '=', chart.slug)
+      .executeTakeFirst(),
+  ])
+
+  // `min` over no rows is null, not an absent row, so both halves can be null
+  // even though both queries always return one row.
+  const first = earlierOf(weeks?.first, runs?.first)
+  const last = laterOf(weeks?.last, runs?.last)
+
+  return first === undefined || last === undefined ? null : { first, last }
+}
+
+const earlierOf = (...dates: (string | null | undefined)[]) =>
+  known(dates).sort().at(0)
+
+const laterOf = (...dates: (string | null | undefined)[]) =>
+  known(dates).sort().at(-1)
+
+const known = (dates: (string | null | undefined)[]): string[] =>
+  dates.filter((date): date is string => date !== null && date !== undefined)
 
 /**
  * The most recently held Chart Week, or null when Waveger holds none.
@@ -201,8 +342,11 @@ async function exitsFrom(
 }
 
 export interface ArchivedRun {
-  status: 'succeeded' | 'failed'
-  /** Why the run held nothing. Null when it succeeded. */
+  chart: string
+  /** The Chart Week the run was for, which is not when it ran. */
+  date: string
+  status: IngestionRunStatus
+  /** Why the run held nothing. Null exactly when it succeeded. */
   failure: string | null
   flags: IngestionFlag[]
   /**
@@ -215,21 +359,40 @@ export interface ArchivedRun {
   ranAt: Date
 }
 
-/** Every run for one Chart Week, most recent first. */
+export interface RunHistoryQuery {
+  chart: string
+  /** One Chart Week's runs. Omitted, the history covers the whole Chart. */
+  date?: string
+  limit: number
+}
+
+/**
+ * Ingestion runs, most recent first.
+ *
+ * Ordered by when each ran and not by the week it was for, because the question
+ * this answers is what ingestion has been doing lately — a run repairing a week
+ * from last year belongs at the top of that, next to the failure that prompted
+ * it.
+ */
 export async function ingestionRuns(
   db: Kysely<Database>,
-  id: ChartWeekId,
+  query: RunHistoryQuery,
 ): Promise<ArchivedRun[]> {
-  const runs = await db
+  let history = db
     .selectFrom('ingestion_run')
-    .select(['status', 'failure', 'flags', 'ran_at'])
+    .select(['chart_slug', 'week_date', 'status', 'failure', 'flags', 'ran_at'])
     .select((eb) => eb('payload', 'is not', null).as('payload_stored'))
-    .where('chart_slug', '=', id.chart)
-    .where('week_date', '=', id.date)
+    .where('chart_slug', '=', query.chart)
     .orderBy('ran_at', 'desc')
-    .execute()
+    .limit(query.limit)
 
-  return runs.map((run) => ({
+  if (query.date !== undefined) {
+    history = history.where('week_date', '=', query.date)
+  }
+
+  return (await history.execute()).map((run) => ({
+    chart: run.chart_slug,
+    date: run.week_date,
     status: run.status,
     failure: run.failure,
     flags: run.flags,

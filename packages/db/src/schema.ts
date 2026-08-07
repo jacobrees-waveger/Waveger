@@ -56,6 +56,14 @@ export interface IngestionFlag {
 }
 
 /**
+ * How a run ended. Three outcomes, because the two ways of failing send an
+ * operator to different places: `rejected` is a source that answered with
+ * something that is not a Chart Week, `unavailable` a source that did not
+ * answer at all.
+ */
+export type IngestionRunStatus = 'succeeded' | 'rejected' | 'unavailable'
+
+/**
  * What happened every time ingestion ran.
  *
  * The two JSON columns insert as strings because the pg driver turns a JS array
@@ -66,7 +74,8 @@ export interface IngestionRunTable {
   id: Generated<string>
   chart_slug: string
   week_date: string
-  status: 'succeeded' | 'failed'
+  status: IngestionRunStatus
+  /** Why the run held nothing. Null exactly when it succeeded. */
   failure: string | null
   flags: JSONColumnType<IngestionFlag[]>
   payload: JSONColumnType<object> | null

@@ -8,7 +8,7 @@ import type { Context } from 'hono'
 import { ingestChartWeek, type IngestionOutcome } from '../chart/ingest'
 import { chartWeekDueOn } from '../chart/schedule'
 import { ingestionFlagSchema } from '../chart/validate'
-import { errorBody, type ApiEnv } from '../context'
+import { errorBody, unknownChart, type ApiEnv } from '../context'
 
 /**
  * Ingestion is triggered by an HTTP request, not by a script or a worker.
@@ -199,9 +199,6 @@ function report(
       return c.json(errorBody('chart_source_unavailable', outcome.reason), 502)
 
     case 'unknown_chart':
-      return c.json(
-        errorBody('not_found', `Waveger has no Chart called ${id.chart}.`),
-        404,
-      )
+      return c.json(unknownChart(id.chart), 404)
   }
 }

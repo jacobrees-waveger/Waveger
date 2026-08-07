@@ -78,7 +78,7 @@ a swap of `apps/web/src/app/api/[[...route]]/route.ts`, not a rewrite.
 diff in review. A test fails if it drifts from what the routes generate; run
 `pnpm openapi` to update it.
 
-Three more routes sit under `/api/internal` and are deliberately **absent** from
+Four more routes sit under `/api/internal` and are deliberately **absent** from
 that document (ADR 0011). They serve the operator, promise nothing to any
 client, and are free to change — they are validated like everything else, but
 nothing in the field calls them, so nothing is promised.
@@ -87,26 +87,42 @@ nothing in the field calls them, so nothing is promised.
   fires, and a GET because that is all Vercel Cron sends (ADR 0013)
 - `POST /api/internal/ingest` — `{"chart": "uk-singles", "date": "2026-07-31"}`,
   optionally `"refetch": true` to fetch a week the archive already holds
-- `GET /api/internal/runs?chart=…&date=…` — what happened when it ran
+- `GET /api/internal/archive?chart=…` — whether the archive is whole: the Span
+  it claims, the Chart Weeks Held, and the ones Missing from it
+- `GET /api/internal/runs?chart=…` — the ingestion run history, most recent
+  first. Add `&date=…` for one Chart Week, `&limit=…` to cap it
 
-All three need the shared secret, as `Authorization: Bearer $CRON_SECRET`. Absent
+All four need the shared secret, as `Authorization: Bearer $CRON_SECRET`. Absent
 from the OpenAPI document is not a security measure — it is one guessable path
 — and these routes write to the archive, so the secret is what actually closes
-them. A deployment that has no `CRON_SECRET` answers 503 on both rather than
-serving them: a secret nobody set is not a secret everybody passes. The public
-`/api/v1` is unaffected either way.
+them. A deployment that has no `CRON_SECRET` answers 503 on all of them rather
+than serving them: a secret nobody set is not a secret everybody passes. The
+public `/api/v1` is unaffected either way.
 
 `Authorization: Bearer` is the scheme because it is what Vercel Cron sends by
 itself when `CRON_SECRET` is set, so ingestion runs on a schedule with a cron
 entry and no caller code of its own.
 
 ```bash
+# Is the archive whole? `missing` empty is the only healthy answer.
+curl "$WAVEGER_URL/api/internal/archive?chart=uk-singles" \
+  -H "authorization: Bearer $CRON_SECRET"
+
 # The Chart Week the schedule missed, fetched by hand.
 curl -X POST "$WAVEGER_URL/api/internal/ingest" \
   -H "authorization: Bearer $CRON_SECRET" \
   -H 'content-type: application/json' \
   -d '{"chart":"uk-singles","date":"2026-07-31"}'
 ```
+
+A Chart Week is **Held** when the archive has it with every Entry on it, and
+**Missing** when it is inside the Span and not Held (`CONTEXT.md`). The Span
+runs from the earliest Chart Week the Chart has been *reached for* — whether or
+not it landed — to the Chart Week due now. Both ends are what make a loss
+visible: measured only between the weeks it holds, an archive that lost its
+oldest week or has not been added to for a month has no holes in it at all. It
+is merely shorter than it should be, at one end or the other, and ADR 0002
+makes either one permanent.
 
 ## Charts
 
@@ -127,8 +143,8 @@ on Friday evening (ADR 0013).
 The actor fails about one run in five, so a failed fetch is **tried three times**
 with a doubling backoff, each attempt resuming where the last stopped rather than
 paying again for records already received. When all three fail the run is
-recorded as failed and the schedule carries on (ADR 0014). A Chart Week the
-archive already holds is not fetched at all — Held means the week *and its
+recorded as **unavailable** and the schedule carries on (ADR 0014). A Chart Week
+the archive already holds is not fetched at all — Held means the week *and its
 Entries*, never merely that a run happened — and `"refetch": true` on the POST is
 the only way to fetch one again.
 
@@ -137,8 +153,12 @@ A week is refused unless it has exactly the Chart's Position count, contiguous
 from 1, with no duplicate Positions and no missing titles or Artists — because
 the dangerous failure of a 19%-failure-rate scraper is not the run that errors,
 it is the one that returns 87 of 100 Positions and looks like a chart. A refused
-week leaves the archive untouched and is recorded as a failed run, with its
+week leaves the archive untouched and is recorded as a **rejected** run, with its
 payload kept so it can be replayed without paying to fetch it again.
+
+Those two are the only ways a run fails, and they are kept apart because they
+send you to different places: `rejected` is a source that answered with
+something that is not a Chart Week, `unavailable` a source that did not answer.
 
 An Artist over the Chart Compiler's three-per-week cap is **flagged, not
 rejected**. A breach of the Compiler's own rules is evidence about the source,

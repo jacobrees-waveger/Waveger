@@ -36,3 +36,12 @@ export interface ApiEnv {
 export function errorBody(error: ApiErrorCode, message: string): ApiError {
   return { error, message }
 }
+
+/**
+ * Every route that takes a Chart slug can be handed one Waveger has never heard
+ * of, and they all say so the same way. Worth naming once: the wording is what
+ * an operator reads when they have mistyped a slug, and three copies of it is
+ * three chances for one of them to say something subtly different.
+ */
+export const unknownChart = (slug: string): ApiError =>
+  errorBody('not_found', `Waveger has no Chart called ${slug}.`)

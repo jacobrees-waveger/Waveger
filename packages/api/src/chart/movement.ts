@@ -1,32 +1,20 @@
 import type { ChartMovement } from '@waveger/domain'
 
 /**
- * How far an Entry moved, and what "the previous Chart Week" means.
+ * How far an Entry moved.
  *
  * Nothing here touches the archive — this is the reading of a self-join, not
  * the join itself (see `archive.ts`). Keeping it separate is what makes the
  * archive boundary a case you can see: `unknown` is a fact about a *week*,
  * arrived at because Waveger holds no predecessor, and the only way it can be
  * mistaken for a debut is if someone writes that mistake down here.
- */
-
-/**
- * A Chart publishes on a fixed weekly cadence (`CONTEXT.md`), so the Chart Week
- * before 2026-07-31 is 2026-07-24 and nothing else — deliberately not "the most
- * recent week we hold that is older than this one".
  *
- * Movement measured across a gap is wrong rather than absent, and wrong is the
- * one that cannot be spotted afterwards. ADR 0012 has the argument, what it
- * costs, and why this constant lives here rather than on the `chart` row.
+ * Which week that predecessor is belongs to `cadence.ts`: the Chart Week before
+ * 2026-07-31 is 2026-07-24 and nothing else, deliberately not "the most recent
+ * week we hold that is older than this one". Movement measured across a Missing
+ * week is wrong rather than absent, and wrong is the one that cannot be spotted
+ * afterwards — ADR 0012 has the argument and what it costs.
  */
-const CHART_WEEK_DAYS = 7
-
-/** The published date of the Chart Week before this one. */
-export function previousChartWeekDate(date: string): string {
-  const previous = new Date(`${date}T00:00:00Z`)
-  previous.setUTCDate(previous.getUTCDate() - CHART_WEEK_DAYS)
-  return previous.toISOString().slice(0, 10)
-}
 
 /** Where a Song stood in the previous Chart Week, as far as Waveger can tell. */
 export type PreviousStanding =
