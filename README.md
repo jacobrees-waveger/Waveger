@@ -98,3 +98,26 @@ produced, and nothing generates it.
 Postgres. Nothing is mocked. Each test gets a fresh schema, migrated from the
 same SQL a deployment runs and dropped afterwards, so tests cannot see each
 other's rows and none of them clean up after themselves.
+
+## Deployment
+
+Vercel project `waveger`, team `jacobreesnew-7380s-projects`, deploying from
+`jacobrees-waveger/Waveger`. Two project settings carry the monorepo, and
+neither can live in a file:
+
+| Setting | Value |
+|---|---|
+| Root Directory | `apps/web` |
+| Framework Preset | Next.js |
+
+`apps/web` is the deployable, so Vercel points at it directly and detects Next
+from `apps/web/package.json`. Install still resolves from the workspace root —
+the build log reads `Scope: all 7 workspace projects` — so `packages/*` are
+linked as sources and compiled by Next, exactly as ADR 0010 intends.
+
+Root Directory is a project-level setting, so `vercel.json` cannot express it.
+That makes this table the only record, which is why it is written down rather
+than left in the dashboard. Getting it wrong does not fail loudly: pointed at
+the repository root, Vercel detects no framework, falls back to a static build,
+runs `pnpm build` successfully, then fails with `No Output Directory named
+"public" found` — a passing build and a dead deployment.
