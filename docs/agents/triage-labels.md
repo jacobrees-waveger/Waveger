@@ -15,9 +15,11 @@ Exactly one per triaged issue. These map onto labels Linear created by default.
 
 ## State roles
 
-Exactly one per triaged issue. These were created in Linear specifically for the
-triage skill, so the mapping is 1:1 with the canonical names. They are
-workspace-level labels, so every team in the Waveger workspace has them.
+Exactly one per triaged issue that is still waiting to be worked — see
+**Landed issues** below for the one case where none applies. These were created
+in Linear specifically for the triage skill, so the mapping is 1:1 with the
+canonical names. They are workspace-level labels, so every team in the Waveger
+workspace has them.
 
 | Label in mattpocock/skills | Label in our tracker | Meaning                                  |
 | -------------------------- | -------------------- | ---------------------------------------- |
@@ -26,6 +28,22 @@ workspace-level labels, so every team in the Waveger workspace has them.
 | `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
+
+## Landed issues carry no state role
+
+When a PR merges, `/review-pr` removes whichever state role the issue carries
+and adds nothing back, leaving only the category label. Correct, not an
+oversight.
+
+None of the five means "done". Triage routes work that has **not** been done —
+to a human, to an agent, back to the reporter, or to nowhere — and a merged
+ticket needs no routing. Leaving `ready-for-agent` on one is a standing
+invitation to pick up work that is already in production.
+
+Delivery progress lives in Linear's workflow state instead, which is the axis
+that has a `Done`. This is where the orthogonality `issue-tracker.md` describes
+shows itself: the triage axis runs out at the end of an issue's life, and the
+delivery axis is the one still saying something.
 
 ## Notes
 

@@ -67,13 +67,22 @@ say so and stop.
 
    ```bash
    orca linear status set --id WAV-<n> --to Done --workspace "$WS" --json
-   orca linear label remove --id WAV-<n> --label ready-for-agent --workspace "$WS" --json
    orca linear comment add --id WAV-<n> --workspace "$WS" --body-file <path>
    ```
 
+   Then drop the state role. **Read the issue's labels first and remove the one
+   it actually has** — it is `ready-for-agent` most of the time and
+   `ready-for-human` or `needs-info` often enough to matter, and removing a
+   label the issue does not carry leaves the real one behind:
+
+   ```bash
+   orca linear issue --id WAV-<n> --workspace "$WS" --json   # read .labels
+   orca linear label remove --id WAV-<n> --label <the one it has> --workspace "$WS" --json
+   ```
+
    `--label` is singular and repeated; never `label set`, which would drop the
-   category label. A landed issue is left with no triage role at all, on purpose
-   — `docs/agents/workflow.md` says why.
+   category label too. A landed issue is left with no triage role at all, on
+   purpose — `docs/agents/triage-labels.md` says why.
 
    The comment says what shipped and what to expect next, not a summary of the
    diff. The PR is the diff.
