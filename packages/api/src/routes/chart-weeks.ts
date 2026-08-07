@@ -10,11 +10,15 @@ export const latestChartWeekRoute = createRoute({
   summary: 'The most recently held Chart Week',
   description:
     'The most recently published Chart Week Waveger holds, as a ranked list ' +
-    'from Position 1 down. Served from Waveger\'s own archive: reading it ' +
-    'never reaches back to the Chart Compiler. Public and unauthenticated.',
+    'from Position 1 down, with each Entry\'s movement since the previous ' +
+    'Chart Week and the Songs that left it. Served from Waveger\'s own ' +
+    'archive: reading it never reaches back to the Chart Compiler. Public and ' +
+    'unauthenticated.',
   responses: {
     200: {
-      description: 'The whole Chart Week, in Position order.',
+      description:
+        'The whole Chart Week, in Position order, with its exits. Movement is ' +
+        '`unknown` throughout when Waveger holds no previous Chart Week.',
       content: { 'application/json': { schema: chartWeekSchema } },
     },
     404: {

@@ -1,4 +1,5 @@
 import type { ChartWeekId } from '@waveger/domain'
+import previousWeek from './fixtures/uk-singles-2026-07-24.json'
 import verifiedRun from './fixtures/uk-singles-2026-07-31.json'
 import {
   ChartSourceError,
@@ -10,18 +11,35 @@ import {
 /**
  * A `ChartSource` that replays stored runs of the Apify actor.
  *
- * It ships with one: the verified run of the Chart Week dated 2026-07-31 that
- * ADR 0002 checked by hand — 100 Positions, no gaps or duplicates, the
- * three-per-artist cap holding exactly. Stored verbatim, so the payload
- * ingestion sees here is the payload it will see in production, including the
- * actor's two known defects.
+ * It ships with two adjacent Chart Weeks, and they are not equally real.
  *
- * This is the whole chart half of the product until WAV-11 puts the live actor
- * behind the same interface, at which point nothing above the seam changes.
+ * 2026-07-31 is the verified run ADR 0002 checked by hand — 100 Positions, no
+ * gaps or duplicates, the three-per-artist cap holding exactly. Stored
+ * verbatim, so the payload ingestion sees here is the payload it will see in
+ * production, including the actor's two known defects.
+ *
+ * 2026-07-24 is **hand-authored**, and it is here so that movement has anything
+ * to be derived from: a lone Chart Week has no predecessor, so every Entry on
+ * it reads as `unknown` and nothing ever leaves. Its Positions were chosen to
+ * agree with what the verified run says about them — the 37 climbers and 11
+ * non-movers sit where that run's `last_week` puts them, and the 11 Songs it
+ * marks `is_new` are simply absent. The other 41 Positions and all 11 exiting
+ * Songs are invented, because `last_week` is null for every descending Entry
+ * and there was nothing to recover.
+ *
+ * Its own records carry `last_week: null` and `is_new: false` throughout: this
+ * week is not a run of the actor and states nothing about the week before it.
+ * Nothing reads either field, so nothing notices. Both weeks go once WAV-11
+ * puts the live actor behind this same interface, at which point nothing above
+ * the seam changes.
+ *
  * Tests pass their own runs in to describe weeks the archive should refuse.
  */
 export function createFixtureChartSource(
-  runs: StoredRuns = { 'uk-singles/2026-07-31': verifiedRun },
+  runs: StoredRuns = {
+    'uk-singles/2026-07-24': previousWeek,
+    'uk-singles/2026-07-31': verifiedRun,
+  },
 ): ChartSource {
   return {
     async fetchChartWeek(id: ChartWeekId): Promise<SourceChartWeek> {

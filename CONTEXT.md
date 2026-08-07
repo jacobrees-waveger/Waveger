@@ -30,6 +30,23 @@ _Avoid_: chart position, chart row, placing, appearance
 An Entry's rank within its Chart Week. Position 1 is the top.
 _Avoid_: rank, place, number, spot
 
+**Movement**:
+How far an Entry's Position changed from the previous Chart Week. Waveger's
+own figure, derived by comparing two Chart Weeks it holds and never read from
+the Chart Compiler. Movement is unknown, not zero, when Waveger does not hold
+the previous Chart Week.
+_Avoid_: change, delta, trend, last week
+
+**Debut**:
+A Song's first Entry on a Chart — on this Chart Week and not the previous one.
+Distinct from an Entry whose Movement is merely unknown.
+_Avoid_: new entry, newcomer, fresh
+
+**Exit**:
+A Song on the previous Chart Week with no Entry on this one. An Exit is the
+absence of an Entry and never has one of its own.
+_Avoid_: drop-out, fell off, removed
+
 **Song**:
 A recording eligible to appear on a Chart.
 _Avoid_: track, single, record, tune

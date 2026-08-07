@@ -2,6 +2,7 @@ import { createTestDatabase, type TestDatabase } from '@waveger/db/testing'
 import { chartWeekSchema } from '@waveger/domain'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApi } from '../app'
+import previousWeek from '../chart/fixtures/uk-singles-2026-07-24.json'
 import verifiedRun from '../chart/fixtures/uk-singles-2026-07-31.json'
 import { createFixtureChartSource } from '../chart/fixture-source'
 
@@ -11,18 +12,10 @@ let database: TestDatabase
 
 const records = verifiedRun as readonly Record<string, unknown>[]
 
-/**
- * The verified week, and the week before it. The earlier one is the same
- * hundred Entries under an earlier date — enough to say which week is the
- * most recent, which is all this file asks. WAV-10 hand-authors neighbours
- * with real climbs and falls in them.
- */
+/** The verified week and the hand-authored week before it. */
 const twoWeeks = createFixtureChartSource({
   'uk-singles/2026-07-31': records,
-  'uk-singles/2026-07-24': records.map((record) => ({
-    ...record,
-    chart_date: '2026-07-24',
-  })),
+  'uk-singles/2026-07-24': previousWeek,
 })
 
 const apiFor = (source = twoWeeks) =>

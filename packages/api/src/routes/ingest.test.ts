@@ -79,12 +79,15 @@ test('ingesting the verified Chart Week puts the whole week in the archive', asy
   expect(week.date).toBe('2026-07-31')
   expect(week.chart.name).toBe('UK Official Singles Chart')
   expect(week.entries).toHaveLength(100)
+  // One week ingested is one week held, so there is no predecessor to derive
+  // movement against and every Entry says so. `movement.test.ts` has the rest.
   expect(week.entries[0]).toEqual({
     position: 1,
     title: 'REIN ME IN',
     artist: 'SAM FENDER & OLIVIA DEAN',
     peakPosition: 1,
     weeksOnChart: 59,
+    movement: { kind: 'unknown' },
   })
   expect(week.entries.at(-1)).toEqual({
     position: 100,
@@ -92,7 +95,9 @@ test('ingesting the verified Chart Week puts the whole week in the archive', asy
     artist: 'CHARLI XCX',
     peakPosition: 100,
     weeksOnChart: 1,
+    movement: { kind: 'unknown' },
   })
+  expect(week.exits).toEqual([])
 })
 
 test('a successful run is recorded, with the payload kept for a replay', async () => {
@@ -152,6 +157,32 @@ test('a Chart Week with two Entries at one Position is refused whole', async () 
     error: 'chart_week_rejected',
     message: expect.stringContaining('two Entries at Position 12'),
   })
+})
+
+/**
+ * A Song at two Positions is not a Chart Week, and refusing it is what the
+ * movement self-join stands on. Entries are keyed on Chart Week and Position,
+ * so the archive would hold both rows and both would point at the one Song;
+ * joining two weeks on the Song would then return that Entry twice and the
+ * week would read as more Entries than the Chart has Positions.
+ */
+test('a Chart Week naming one Song at two Positions is refused whole', async () => {
+  const oneSong = { title: 'LONG WAY DOWN', artist: 'THE WANDERING HEARTS' }
+  const twiceOver = records.map((record, index) =>
+    index === 8 || index === 41 ? { ...record, ...oneSong } : record,
+  )
+  const api = apiFor(sourceServing(twiceOver))
+
+  const run = await ingest(api, VERIFIED_WEEK)
+
+  expect(run.status).toBe(502)
+  expect(await run.json()).toMatchObject({
+    error: 'chart_week_rejected',
+    message: expect.stringContaining(
+      'LONG WAY DOWN by THE WANDERING HEARTS at two Positions',
+    ),
+  })
+  expect(await heldChartWeek(api)).toBeNull()
 })
 
 test('a Chart Week with a Position the Chart does not have is refused whole', async () => {

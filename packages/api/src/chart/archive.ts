@@ -1,6 +1,7 @@
 import type { Database, IngestionFlag } from '@waveger/db'
-import type { ChartWeek, ChartWeekId } from '@waveger/domain'
+import type { ChartExit, ChartWeek, ChartWeekId } from '@waveger/domain'
 import type { Kysely } from 'kysely'
+import { movementOf, previousChartWeekDate } from './movement'
 
 /**
  * Reading the archive Waveger owns.
@@ -41,6 +42,19 @@ export async function findChart(
  * The archive has one Chart today and the spec keeps the product that way, so
  * this takes no Chart: the week it finds names its own Chart in the response.
  * A second Chart makes this a parameter, which is an additive change.
+ *
+ * Movement and exits come from the same place the week does. Both are derived
+ * here, at read time, by joining the archive to itself one Chart Week back —
+ * there is no movement column and no backfill job, so correcting a past week
+ * fixes its neighbour on the next read. The two joins are the same fact read in
+ * opposite directions: a Song on this week and not the last one is a debut, and
+ * a Song on the last one and not this is an exit.
+ *
+ * Both joins match on the Song, so both depend on a Song appearing at most once
+ * in a Chart Week. Entries are keyed on Chart Week and Position, which does not
+ * say that — `validateChartWeek` does, by refusing a week that names one Song
+ * twice. Without it this join would return an Entry once per duplicate and a
+ * hundred-Position week would read as more than a hundred Entries.
  */
 export async function latestChartWeek(
   db: Kysely<Database>,
@@ -55,15 +69,37 @@ export async function latestChartWeek(
 
   if (week === undefined) return null
 
+  const previous = {
+    chart: week.slug,
+    date: previousChartWeekDate(week.week_date),
+  }
+
   const entries = await db
     .selectFrom('entry')
     .innerJoin('song', 'song.id', 'entry.song_id')
+    .leftJoin('chart_week as previous_week', (join) =>
+      join
+        .on('previous_week.chart_slug', '=', previous.chart)
+        .on('previous_week.week_date', '=', previous.date),
+    )
+    .leftJoin('entry as previous_entry', (join) =>
+      join
+        .onRef('previous_entry.chart_week_id', '=', 'previous_week.id')
+        .onRef('previous_entry.song_id', '=', 'entry.song_id'),
+    )
     .select([
       'entry.position',
       'song.title',
       'song.artist',
       'entry.peak_position',
       'entry.weeks_on_chart',
+      // Both nullable, and for different reasons: the first is null when
+      // Waveger holds no previous Chart Week, the second when it holds one the
+      // Song was not on. That is the difference between unknown and a debut,
+      // and it survives all the way to `movementOf` rather than being flattened
+      // here into a single "no previous Position".
+      'previous_week.id as previous_week_id',
+      'previous_entry.position as previous_position',
     ])
     .where('entry.chart_week_id', '=', week.id)
     .orderBy('entry.position', 'asc')
@@ -78,8 +114,61 @@ export async function latestChartWeek(
       artist: entry.artist,
       peakPosition: entry.peak_position,
       weeksOnChart: entry.weeks_on_chart,
+      movement: movementOf(
+        entry.position,
+        entry.previous_week_id === null
+          ? { held: false }
+          : { held: true, position: entry.previous_position },
+      ),
     })),
+    exits: await exitsFrom(db, week.id, previous),
   }
+}
+
+/**
+ * The Songs that left: the same self-join, read the other way round.
+ *
+ * An exit is the absence of an Entry, so there is no Entry row to return and
+ * none is invented. What comes back is the Song and the Position it last held.
+ *
+ * The previous Chart Week is identified by date rather than by an id passed in,
+ * which is what makes the not-held case need no branch: no such week means no
+ * rows, and a week nobody holds is a week nothing left.
+ */
+async function exitsFrom(
+  db: Kysely<Database>,
+  heldWeekId: string,
+  previous: ChartWeekId,
+): Promise<ChartExit[]> {
+  const gone = await db
+    .selectFrom('chart_week as previous_week')
+    .innerJoin(
+      'entry as previous_entry',
+      'previous_entry.chart_week_id',
+      'previous_week.id',
+    )
+    .innerJoin('song', 'song.id', 'previous_entry.song_id')
+    .select(['song.title', 'song.artist', 'previous_entry.position'])
+    .where('previous_week.chart_slug', '=', previous.chart)
+    .where('previous_week.week_date', '=', previous.date)
+    .where(({ not, exists, selectFrom }) =>
+      not(
+        exists(
+          selectFrom('entry')
+            .select('entry.song_id')
+            .where('entry.chart_week_id', '=', heldWeekId)
+            .whereRef('entry.song_id', '=', 'previous_entry.song_id'),
+        ),
+      ),
+    )
+    .orderBy('previous_entry.position', 'asc')
+    .execute()
+
+  return gone.map((song) => ({
+    title: song.title,
+    artist: song.artist,
+    previousPosition: song.position,
+  }))
 }
 
 export interface ArchivedRun {

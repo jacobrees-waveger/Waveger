@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { IngestionFlag } from '@waveger/db'
 import type { ArchivedChart } from './archive'
-import { normalisedName } from './fingerprint'
+import { normalisedName, songFingerprint } from './fingerprint'
 import type { SourceEntry } from './source'
 
 /**
@@ -10,8 +10,9 @@ import type { SourceEntry } from './source'
  * The actor fails 19% of the time (ADR 0002), and the dangerous failure is not
  * the one that errors — it is the run that returns 87 of 100 Positions and
  * looks like a chart. A week is what the Chart says it is: exactly that many
- * Positions, contiguous from 1, each naming a Song and an Artist. Anything else
- * is a half-scraped run, and the whole of it is refused.
+ * Positions, contiguous from 1, each naming a Song and an Artist, and no Song
+ * at two of them. Anything else is a half-scraped run, and the whole of it is
+ * refused.
  *
  * That list is the whole of it, deliberately. Waveger consumes Charts and never
  * compiles them, so a figure that merely looks wrong — a peak Position of 150,
@@ -62,6 +63,7 @@ export function validateChartWeek(
   }
 
   const seen = new Set<number>()
+  const songs = new Set<string>()
   for (const entry of entries) {
     const at = `at Position ${entry.position}`
 
@@ -81,6 +83,18 @@ export function validateChartWeek(
     if (!Number.isInteger(entry.weeksOnChart)) {
       return reject(`reports no weeks on Chart ${at}`)
     }
+
+    // One Song cannot be at two Positions in one week, and this is the only
+    // thing that says so: Entries are keyed on Chart Week and Position, so the
+    // archive would hold both rows happily and they would point at the one
+    // Song. Reading movement joins two Chart Weeks on the Song, and a Song
+    // twice in either of them multiplies the Entries that come back — a
+    // hundred-Position week that reads as a hundred and one.
+    const song = songFingerprint(entry.artist, entry.title)
+    if (songs.has(song)) {
+      return reject(`has ${entry.title} by ${entry.artist} at two Positions`)
+    }
+    songs.add(song)
   }
 
   // Contiguity needs no check of its own. Exactly `positionCount` Entries,

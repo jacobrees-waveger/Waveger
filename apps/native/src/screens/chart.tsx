@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/api';
 import { describeError } from '@waveger/api-client';
-import { publishedDate, type ChartEntry, type ChartWeek } from '@waveger/domain';
+import {
+  publishedDate,
+  type ChartEntry,
+  type ChartExit,
+  type ChartMovement,
+  type ChartWeek,
+} from '@waveger/domain';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,12 +18,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 /**
- * This week's chart, from Position 1 down.
+ * This week's chart, from Position 1 down, with how far each Entry moved and
+ * the Songs that left.
  *
  * The same Chart Week the website shows, from the same API — and written
  * separately, because ADR 0001 shares logic and types but never UI. A FlatList
  * rather than a scrolled column, so a hundred Entries scroll the way the
- * platform's own lists do.
+ * platform's own lists do; the exits ride along as its footer rather than in a
+ * second list, so the whole week is one scroll.
  */
 
 type State =
@@ -74,6 +82,7 @@ export function Chart() {
           data={state.week.entries}
           keyExtractor={(entry) => String(entry.position)}
           renderItem={({ item }) => <Row entry={item} />}
+          ListFooterComponent={<Exits exits={state.week.exits} />}
         />
       )}
     </SafeAreaView>
@@ -81,9 +90,14 @@ export function Chart() {
 }
 
 function Row({ entry }: { entry: ChartEntry }) {
+  const movement = describe(entry.movement);
+
   return (
     <View style={styles.row}>
       <Text style={styles.position}>{entry.position}</Text>
+      <Text style={[styles.movement, { color: movement.colour }]}>
+        {movement.label}
+      </Text>
       <View style={styles.song}>
         <Text style={styles.songTitle} numberOfLines={1}>
           {entry.title}
@@ -97,6 +111,65 @@ function Row({ entry }: { entry: ChartEntry }) {
           entry.weeksOnChart === 1 ? 'wk' : 'wks'
         }`}
       </Text>
+    </View>
+  );
+}
+
+/**
+ * How far an Entry moved, in the width of a couple of characters.
+ *
+ * The four states are shown as four different things rather than as one number
+ * with special cases in it. A debut is a word, because a Song arriving is not a
+ * move of some size; unknown is blank, because Waveger holding no previous
+ * Chart Week is a fact about Waveger and there is nothing to tell the reader
+ * about the Song.
+ */
+function describe(movement: ChartMovement): { label: string; colour: string } {
+  switch (movement.kind) {
+    case 'moved':
+      return movement.positionsGained > 0
+        ? { label: `▲ ${movement.positionsGained}`, colour: '#047857' }
+        : { label: `▼ ${-movement.positionsGained}`, colour: '#be123c' };
+    case 'non-mover':
+      return { label: '–', colour: '#00000066' };
+    case 'debut':
+      return { label: 'New', colour: '#0369a1' };
+    case 'unknown':
+      return { label: '', colour: '#00000066' };
+  }
+}
+
+/**
+ * The Songs that left the Chart, named rather than silently missing.
+ *
+ * Nothing at all when the week has no predecessor to have left: an empty
+ * heading would read as "nothing dropped out this week", which is a different
+ * claim from "Waveger cannot say".
+ */
+function Exits({ exits }: { exits: readonly ChartExit[] }) {
+  if (exits.length === 0) return null;
+
+  return (
+    <View style={styles.exits}>
+      <Text style={styles.exitsHeading}>Left the chart</Text>
+      {exits.map((exit) => (
+        <View key={exit.previousPosition} style={styles.row}>
+          <Text style={[styles.position, styles.exitPosition]}>
+            {exit.previousPosition}
+          </Text>
+          {/* An exit has no movement, but it keeps the column so its Song
+              lines up with the Songs above it and the two read as one Chart. */}
+          <View style={styles.movement} />
+          <View style={styles.song}>
+            <Text style={styles.exitTitle} numberOfLines={1}>
+              {exit.title}
+            </Text>
+            <Text style={styles.artist} numberOfLines={1}>
+              {exit.artist}
+            </Text>
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
@@ -145,6 +218,30 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
     fontSize: 13,
+    opacity: 0.6,
+  },
+  movement: {
+    width: 38,
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
+    fontSize: 12,
+  },
+  exits: {
+    paddingTop: 24,
+    paddingBottom: 32,
+  },
+  exitsHeading: {
+    paddingHorizontal: 20,
+    paddingBottom: 6,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  exitPosition: {
+    textDecorationLine: 'line-through',
+    opacity: 0.4,
+  },
+  exitTitle: {
+    fontSize: 15,
     opacity: 0.6,
   },
   song: {
