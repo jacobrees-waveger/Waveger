@@ -41,6 +41,7 @@ test('GET /api/v1/status reports the migrated database', async () => {
   expect(body.database.migrations).toEqual([
     '0001_create_schema_migration',
     '0002_create_chart_archive',
+    '0003_split_the_ingestion_run_outcomes',
   ])
 })
 

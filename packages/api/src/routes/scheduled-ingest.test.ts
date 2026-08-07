@@ -115,7 +115,13 @@ test('a schedule that cannot fetch its week records a failed run', async () => {
     { headers: { authorization: `Bearer ${OPERATOR_SECRET}` } },
   )
   expect(await log.json()).toMatchObject({
-    runs: [{ status: 'failed', failure: 'no such week (after 3 attempts)' }],
+    runs: [
+      {
+        date: DUE,
+        status: 'unavailable',
+        failure: 'no such week (after 3 attempts)',
+      },
+    ],
   })
 })
 

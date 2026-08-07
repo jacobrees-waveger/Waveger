@@ -5,6 +5,7 @@ import { defaultRetryPolicy, type RetryPolicy } from './chart/retry'
 import type { ChartSource } from './chart/source'
 import { errorBody, type ApiEnv } from './context'
 import { requireOperatorSecret } from './operator-secret'
+import { archiveHandler, archiveRoute } from './routes/archive'
 import { latestChartWeekHandler, latestChartWeekRoute } from './routes/chart-weeks'
 import {
   ingestHandler,
@@ -23,7 +24,8 @@ import { statusHandler, statusRoute } from './routes/status'
 const API_BASE_PATH = '/api/v1'
 
 /**
- * Ingestion and its run log (ADR 0011). Deliberately outside the versioned
+ * Ingestion, and the two ways of reading what it has done: the archive's health
+ * and its run history (ADR 0011). Deliberately outside the versioned
  * namespace and absent from the OpenAPI document: these routes serve the
  * operator, promise nothing to any client, and are free to change. They are
  * validated like every other route — it is the promise that is withheld, not
@@ -107,6 +109,7 @@ function buildOperatorApi(operatorSecret: string | undefined) {
 
   operator.openapi(ingestRoute, ingestHandler)
   operator.openapi(scheduledIngestRoute, scheduledIngestHandler)
+  operator.openapi(archiveRoute, archiveHandler)
   operator.openapi(runsRoute, runsHandler)
 
   return operator

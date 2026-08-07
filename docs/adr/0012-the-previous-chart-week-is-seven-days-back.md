@@ -48,6 +48,12 @@ today and expensive once a Season has been settled under it — changing the
 definition later would move historical results.
 
 **The weekly cadence is hardcoded**, as one named constant in
-`packages/api/src/chart/movement.ts`. A second Chart on a different cadence
+`packages/api/src/chart/cadence.ts`. A second Chart on a different cadence
 would move it onto the `chart` row, which is an additive change to a table that
 already carries the Chart's own `position_count` for the same reason.
+
+It sat in `movement.ts` until WAV-17, which gave the cadence a second reader:
+finding the Missing Chart Weeks means walking the same seven days forward that
+movement walks back. One constant serving both is the point — a cadence that
+meant different things to the two would report holes where movement saw none —
+so it moved to a module of its own rather than being imported out of movement.

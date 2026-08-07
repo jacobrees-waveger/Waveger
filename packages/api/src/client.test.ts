@@ -67,6 +67,7 @@ test('the client reads a status the API really served', async () => {
   expect(status.database.migrations).toEqual([
     '0001_create_schema_migration',
     '0002_create_chart_archive',
+    '0003_split_the_ingestion_run_outcomes',
   ])
   expect(received[0]?.accept).toBe('application/json')
 })

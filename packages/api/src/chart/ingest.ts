@@ -1,4 +1,8 @@
-import type { Database, IngestionFlag } from '@waveger/db'
+import type {
+  Database,
+  IngestionFlag,
+  IngestionRunStatus,
+} from '@waveger/db'
 import type { ChartWeekId } from '@waveger/domain'
 import type { Kysely, Transaction } from 'kysely'
 import { findChart, isChartWeekHeld, type ArchivedChart } from './archive'
@@ -54,7 +58,7 @@ export async function ingestChartWeek(
   // Asked before anything is fetched, because not fetching is the point: the
   // schedule runs weekly against an actor that charges per record, and a week
   // already in the archive costs nothing to skip.
-  if (options.refetch !== true && (await isChartWeekHeld(db, id, chart))) {
+  if (options.refetch !== true && (await isChartWeekHeld(db, id.date, chart))) {
     return { kind: 'already_held', entries: chart.positionCount }
   }
 
@@ -64,13 +68,16 @@ export async function ingestChartWeek(
   } catch (cause) {
     const reason = cause instanceof Error ? cause.message : String(cause)
     // Nothing was fetched, so there is nothing to store and nothing to flag.
-    await recordFailedRun(db, id, reason, { payload: undefined, flags: [] })
+    await recordFailedRun(db, id, 'unavailable', reason, {
+      payload: undefined,
+      flags: [],
+    })
     return { kind: 'unavailable', reason }
   }
 
   const week = validateChartWeek(fetched.entries, chart)
   if (!week.ok) {
-    await recordFailedRun(db, id, week.reason, {
+    await recordFailedRun(db, id, 'rejected', week.reason, {
       payload: fetched.payload,
       flags: week.flags,
     })
@@ -202,7 +209,7 @@ function songIdOf(
 }
 
 /**
- * A run that wrote nothing still happened, and says why.
+ * A run that wrote nothing still happened, and says both how and why.
  *
  * Outside the transaction that would have held the week, so the record of the
  * failure survives whatever the failure was.
@@ -210,6 +217,7 @@ function songIdOf(
 async function recordFailedRun(
   db: Kysely<Database>,
   id: ChartWeekId,
+  status: Exclude<IngestionRunStatus, 'succeeded'>,
   failure: string,
   found: { payload: unknown; flags: IngestionFlag[] },
 ): Promise<void> {
@@ -218,7 +226,7 @@ async function recordFailedRun(
     .values({
       chart_slug: id.chart,
       week_date: id.date,
-      status: 'failed',
+      status,
       failure,
       // A week can breach the Compiler's cap and still be half-scraped. This
       // run is the only place that sighting survives, so it is kept even

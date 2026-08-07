@@ -27,6 +27,20 @@ attempt that fetched nothing, or fetched something that was refused, leaves the
 Chart Week not Held — and being Held says nothing about whether it is correct.
 _Avoid_: stored, saved, cached, ingested, have
 
+**Span**:
+The stretch of a Chart's cadence Waveger claims: from the earliest Chart Week it
+has reached for, whether or not it got it, to the Chart Week due now. It reaches
+forward to the week due rather than to the last one Held, so an archive nobody
+is adding to is short by a visible amount rather than merely small.
+_Avoid_: range, coverage, window, archive period
+
+**Missing**:
+A Chart Week inside the Span that is not Held. A hole in the cadence rather than
+an absence of rows: 2026-07-24 unheld is Missing, and 1953-01-01 is not Missing
+but outside the Span, because nothing ever claimed it. A week that was fetched
+and refused is Missing like any other — being reached for is not having.
+_Avoid_: absent, unfetched, behind, stale
+
 **Entry**:
 One row of one Chart in one Chart Week — a Song at a Position. An Entry is an
 event in time and is distinct from the Song it names.

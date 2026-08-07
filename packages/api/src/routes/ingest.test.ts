@@ -173,7 +173,7 @@ test("a Chart Week short of the Chart's Position count is refused whole", async 
   expect(await heldChartWeek(api)).toBeNull()
 })
 
-test('a rejected run leaves the archive untouched and is recorded as failed', async () => {
+test('a rejected run leaves the archive untouched and is recorded as rejected', async () => {
   const api = apiFor(sourceServing(records.slice(0, 99)))
 
   await ingest(api, VERIFIED_WEEK)
@@ -181,7 +181,7 @@ test('a rejected run leaves the archive untouched and is recorded as failed', as
   expect(await heldChartWeek(api)).toBeNull()
   expect(await runsFor(api)).toEqual([
     expect.objectContaining({
-      status: 'failed',
+      status: 'rejected',
       failure: expect.stringContaining('99 Entries'),
       // Kept even though nothing was held: the run can be replayed against
       // changed parsing without paying the actor for the fetch again.
@@ -333,13 +333,13 @@ test('a week that breached the cap and was refused still records the breach', as
   // The week is gone; the run is the only record that the breach was seen.
   expect(await runsFor(api)).toEqual([
     expect.objectContaining({
-      status: 'failed',
+      status: 'rejected',
       flags: [{ kind: 'artist_over_cap', artist: 'OLIVIA RODRIGO', entries: 4 }],
     }),
   ])
 })
 
-test('a source that cannot answer records a failed run and holds nothing', async () => {
+test('a source that cannot answer records an unavailable run and holds nothing', async () => {
   const api = apiFor(failingSource().source)
 
   const run = await ingest(api, VERIFIED_WEEK)
@@ -352,7 +352,7 @@ test('a source that cannot answer records a failed run and holds nothing', async
   expect(await heldChartWeek(api)).toBeNull()
   expect(await runsFor(api)).toEqual([
     expect.objectContaining({
-      status: 'failed',
+      status: 'unavailable',
       failure: 'the actor run failed (after 3 attempts)',
       // Nothing was fetched, so there is nothing to replay.
       payloadStored: false,
@@ -488,7 +488,7 @@ test('a source that says trying again cannot help is not tried again', async () 
   // explanation for that whether the cause was the actor or the deployment.
   expect(await runsFor(api)).toEqual([
     expect.objectContaining({
-      status: 'failed',
+      status: 'unavailable',
       failure: 'APIFY_TOKEN is not set',
     }),
   ])
