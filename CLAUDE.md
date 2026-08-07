@@ -28,7 +28,10 @@ ESLint then turns that into a sentence saying why.
 ## Engineering principles
 
 - Do not preserve backward compatibility. Remove obsolete paths instead of
-  adding compatibility layers, fallbacks, or migrations.
+  adding compatibility layers, fallbacks, or migrations. This is about what the
+  codebase carries *permanently*; it does not forbid a **schema** widened
+  across a PR or two and narrowed in a later one, which ADR 0015 requires
+  rather than merely allows.
 - Choose the simplest implementation that fully meets the current
   requirements. Avoid speculative abstractions, configuration, and
   indirection.

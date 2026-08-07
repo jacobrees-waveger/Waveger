@@ -179,6 +179,32 @@ under load rather than immediately:
 - `DATABASE_URL` — pooled. What the app uses.
 - `DATABASE_URL_UNPOOLED` — direct. What migrations and tests use.
 
+Three Vercel environments, and only two databases between them:
+
+| Environment | Database |
+|---|---|
+| Development | the main Neon branch |
+| Production | **the same** main Neon branch |
+| Preview | a branch of its own, per deployment (ADR 0008) |
+
+**This one is wrong and not yet fixed** (WAV-24). `vercel env pull` writes Development,
+so it hands you production's connection string on production's credentials:
+`pnpm db:migrate` at the repository root migrates *production*, and every
+worktree and local script points at the live database. `pnpm test` is safe, but
+by luck of the harness rather than by configuration — each test builds its own
+schema and drops it, inside the production database.
+
+It is the integration's default rather than a decision: Neon sets Production and
+Development together, and offers "Create a branch for your development
+environment" as an opt-in nobody switched on. ADR 0008 argues for exactly that —
+a branch is "a full copy-on-write database with its own connection string" — and
+then never applies it to Development.
+
+For production work against a database that is *not* Development's, once WAV-24
+has split them: `vercel env pull --environment=production <file>` and point the
+tooling at that instead. Today the two are the same string, so it changes
+nothing.
+
 Migrations are hand-written SQL in `packages/db/migrations/`, applied in
 filename order and recorded in `schema_migration` — a table which is itself the
 first migration, so every table in the database was put there by a file you can
@@ -186,6 +212,18 @@ read. There is no `down`: this project removes obsolete paths rather than
 reversing into them. Adding a migration means editing `packages/db/src/schema.ts`
 in the same commit — that file is the hand-written record of what the SQL
 produced, and nothing generates it.
+
+**Nothing applies migrations on deploy** (WAV-25). `build` is `next build`, so a
+merge deploys the code and leaves the database alone; you run `pnpm db:migrate`
+yourself, immediately after. Code first, schema second, every time.
+
+Which is why **a migration never ships in the same PR as the code that depends
+on it** (ADR 0015) — that PR would run its code against the old schema until
+someone migrated. A schema change is two PRs, migration first; three when the
+serving code could not survive the change, so that it goes through a compatible
+intermediate. `docs/agents/workflow.md` has the procedure.
+`GET /api/v1/status` lists what has actually been applied, which is how you
+check.
 
 The archive itself is Charts, Chart Weeks, Songs, Entries and a log of every
 ingestion run. Entries are keyed on Chart Week and Position, which is what makes
@@ -204,8 +242,12 @@ other's rows and none of them clean up after themselves.
 ## Deployment
 
 Vercel project `waveger`, team `jacobreesnew-7380s-projects`, deploying from
-`jacobrees-waveger/Waveger`. Two project settings carry the monorepo, and
-neither can live in a file:
+`jacobrees-waveger/Waveger`. A deploy carries code only — the schema is applied
+separately and by hand, which is why a migration never ships in the same PR as
+the code that needs it (ADR 0015). **Database** above has that and the
+environment-to-branch mapping.
+
+Two project settings carry the monorepo, and neither can live in a file:
 
 | Setting | Value |
 |---|---|
