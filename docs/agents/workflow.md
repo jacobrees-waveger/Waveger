@@ -123,14 +123,51 @@ and the matching edit to `packages/db/src/schema.ts` belong in the same commit.
 Nothing checks this — there is no generator and no schema DSL (ADR 0004) — so it
 is a human check or it is nothing.
 
+**And a migration is applied by hand, or not at all.** `build` is `next build`
+and nothing in it runs `pnpm db:migrate`, so merging a migration deploys the
+code and leaves the database as it was. Migrate immediately after the deploy
+goes green, and check it landed (below). Whether that should be automated at all
+is WAV-25.
+
+**A migration must be compatible with the code already serving** (ADR 0015).
+Because the deploy order is fixed — code first, schema second, every time — that
+resolves to one rule you can check: **a migration never ships in the same PR as
+the code that depends on it.** A PR carrying both is *guaranteed* to run that
+code against the old schema until someone migrates. Not at risk of it;
+guaranteed, by construction. So a schema change is at least two PRs:
+
+1. **Migration**, with no code depending on it. Deploying it is a no-op. Apply it.
+2. **Code**, with no migration. The schema it needs is already there.
+
+**Do not shortcut this by asking whether the SQL is additive.** A `not null`
+column with no default, or a new unique index, adds and still breaks the serving
+code the moment it is applied. The question is never what the SQL does, it is
+whether the version currently serving survives it. When it would not, the change
+needs a compatible intermediate — **expand, then code, then contract**, three
+PRs, the last only once nothing writes the old shape.
+
+**File the contract ticket before the expand PR merges.** The widening is not
+the risk; forgetting to remove it is, and this project trusts a Linear ticket to
+survive a week where it does not trust an intention.
+
+The two-PR split is a consequence of migrations being manual and would relax if
+that changed (WAV-25); the compatibility requirement would not. ADR 0015 has
+both, and why this is not the compatibility layer the engineering principles
+forbid.
+
 ## After the merge
+
+**Apply the migration, if the branch had one**, and prove it landed:
+`GET /api/v1/status` lists the applied migrations, so the new one is either in
+that array or it never ran. Do this before anything below it — the deployment is
+already live and already needs the schema.
 
 **Verify what the ticket promised, in production.** Not optional, and not
 something the suite can do: this repo ships behaviour that lives in project
 settings and platform state — cron registration, environment variables, function
-configuration — which no file in the repo can assert. ADR 0011 is the nearest
-cautionary tale: a protection nobody had chosen was removed, and nothing
-noticed for a day.
+configuration, the database schema — which no file in the repo can assert. ADR
+0011 is the nearest cautionary tale: a protection nobody had chosen was removed,
+and nothing noticed for a day.
 
 **Close out Linear.** Status to Done, and a comment saying what shipped and what
 to expect. See `issue-tracker.md`.
