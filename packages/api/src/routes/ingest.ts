@@ -10,8 +10,8 @@ import { errorBody, type ApiEnv } from '../context'
  * That is the shape it needs anyway once WAV-11 puts it on a schedule, and it
  * means ingestion and reading share the one test seam. It is an operator route
  * and not part of the public `/api/v1` contract, so it is absent from the
- * OpenAPI document by construction: nothing here is promised to any client.
- * The shared secret that will guard it arrives with the schedule.
+ * OpenAPI document by construction (ADR 0011): nothing here is promised to any
+ * client. The shared secret that will guard it arrives with the schedule.
  */
 
 const ingestionReportSchema = z.object({

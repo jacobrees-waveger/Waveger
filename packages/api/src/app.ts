@@ -16,9 +16,11 @@ import { statusHandler, statusRoute } from './routes/status'
 const API_BASE_PATH = '/api/v1'
 
 /**
- * Ingestion and its run log. Deliberately outside the versioned namespace and
- * absent from the OpenAPI document: these routes serve the operator, promise
- * nothing to any client, and are free to change.
+ * Ingestion and its run log (ADR 0011). Deliberately outside the versioned
+ * namespace and absent from the OpenAPI document: these routes serve the
+ * operator, promise nothing to any client, and are free to change. They are
+ * validated like every other route — it is the promise that is withheld, not
+ * the checking.
  *
  * Under `/api` rather than beside it because the whole Hono app reaches the
  * world through one Next.js catch-all at `/api`, and ADR 0006 keeps that the

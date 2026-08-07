@@ -79,8 +79,11 @@ diff in review. A test fails if it drifts from what the routes generate; run
 `pnpm openapi` to update it.
 
 Two more routes sit under `/api/internal` and are deliberately **absent** from
-that document. They serve the operator, promise nothing to any client, and are
-free to change. The shared secret guarding them arrives with the schedule.
+that document (ADR 0011). They serve the operator, promise nothing to any
+client, and are free to change — they are validated like everything else, but
+nothing in the field calls them, so nothing is promised. They are also
+unauthenticated until the shared secret arrives with the schedule, so treat
+"not in the document" as one guessable path rather than as unreachable.
 
 - `POST /api/internal/ingest` — `{"chart": "uk-singles", "date": "2026-07-31"}`
 - `GET /api/internal/runs?chart=…&date=…` — what happened when it ran

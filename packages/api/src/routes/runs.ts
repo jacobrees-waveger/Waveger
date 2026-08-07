@@ -10,7 +10,7 @@ import type { ApiEnv } from '../context'
  * A Chart Week Waveger does not hold needs an explanation, and this is where
  * the operator reads it: whether the run succeeded, why it did not, what it
  * flagged, and whether its payload was kept for a replay. An operator route,
- * like `/api/internal/ingest`, and no part of the public contract.
+ * like `/api/internal/ingest`, and no part of the public contract (ADR 0011).
  */
 
 const runSchema = z.object({

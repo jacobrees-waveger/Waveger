@@ -20,10 +20,11 @@ absence; don't suggest creating them upfront. The `/domain-modeling` skill
 (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates
 them lazily when terms or decisions actually get resolved.
 
-Both now exist: `CONTEXT.md` at the root, and ADRs 0001–0007 in `docs/adr/`,
-written during the grilling session of 2026-08-06. Read them before proposing
-architecture — several record decisions that deliberately reject the obvious
-option.
+Both now exist: `CONTEXT.md` at the root, and a numbered set in `docs/adr/`,
+opened by the grilling session of 2026-08-06 and added to since. Read what is
+there before proposing architecture — several record decisions that
+deliberately reject the obvious option. Take the directory as the list; a count
+written down here would be wrong by the next decision.
 
 ## File structure
 
