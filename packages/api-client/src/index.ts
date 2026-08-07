@@ -41,6 +41,16 @@ export interface ApiClient {
 export interface CreateApiClientOptions {
   /** Origin the API is served from, e.g. `https://waveger.vercel.app`. */
   baseUrl: string
+  /**
+   * Sent with every request, on top of `accept`.
+   *
+   * A caller can be authorised in a way the client has no business knowing
+   * about: the web app forwards the viewer's `cookie` so a Server Component
+   * rendering a protected preview deployment carries the same authorisation
+   * the viewer already holds, and native will carry a bearer token (ADR 0007).
+   * The client stays ignorant of both and just puts them on the wire.
+   */
+  headers?: Readonly<Record<string, string>>
 }
 
 export function createApiClient(options: CreateApiClientOptions): ApiClient {
@@ -48,7 +58,7 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
 
   async function request(path: string, signal?: AbortSignal): Promise<unknown> {
     const response = await fetch(`${origin}/api/v1${path}`, {
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', ...options.headers },
       signal,
     })
     const body: unknown = await response.json().catch(() => null)
