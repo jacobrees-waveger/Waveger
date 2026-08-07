@@ -60,7 +60,7 @@ ESLint then turns that into a sentence saying why.
 | Chart positions | Apify actor scraping the UK Official Singles Chart (ADR 0002) |
 | Song media | Apple Music API — artwork, previews, catalogue metadata. Joined to chart data on artist and title strings (ADR 0002) |
 | Database host | Neon, London (`lhr1`), provisioned as a Vercel Marketplace resource. Preview deployments get their own database branch (ADR 0008) |
-| Deployment | Vercel project `waveger`, team `jacobreesnew-7380s-projects`, deploying `jacobrees-waveger/Waveger` |
+| Deployment | Vercel project `waveger`, team `jacobreesnew-7380s-projects`, deploying `jacobrees-waveger/Waveger`. Root Directory is `apps/web` and the preset is Next.js — project settings, not files, so see the Deployment table in `README.md` |
 | Repo visibility | **Public** — Vercel Hobby will not deploy a private org repo, and the org is required for Linear sync (ADR 0009) |
 
 ## Agent skills
