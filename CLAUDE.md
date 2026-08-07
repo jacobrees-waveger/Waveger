@@ -93,6 +93,14 @@ labels, with `bug`/`enhancement` mapping to `Bug`/`Feature`. Change them with
 Single-context: one `CONTEXT.md` and one `docs/adr/` at the repo root, both
 created lazily. See `docs/agents/domain.md`.
 
+### Branches and landing
+
+Trunk-based and solo: one `main`, a branch per ticket carrying its `WAV-n`,
+squash-merge to land. Vercel builds `main` as Production **on push**, so the
+branch is the only gate there is. Only the `jacobdrees` GitHub account can write
+here, which `gh` needs told and `git push` does not. See
+`docs/agents/workflow.md`.
+
 ## Which tool owns what
 
 Several tools overlap here. Picking the wrong one wastes time.
@@ -211,6 +219,20 @@ they do not appear in the model's skill list:
 /implement                one ticket, TDD at the agreed seams, then /code-review
 ```
 
+`/implement` stops at the commit; the skill says so and nothing in the pack goes
+further. Everything after it is this repo's own, and it is two more user-invoked
+skills:
+
+```
+/draft-pr                 push the branch, open the draft PR, link the ticket
+   ↓
+/review-pr                gates, preview, ready, squash-merge, close out Linear
+```
+
+Both live in `.claude/skills/` and defer to `docs/agents/workflow.md` for the
+policy. They are `disable-model-invocation` like the rest — `/review-pr` merges
+to production, which is not a thing to reach for unprompted.
+
 Small work can skip from the grill straight to `/implement`. `/wayfinder`
 replaces `/to-spec` when the shape is still foggy — it resolves unknown
 *decisions* one at a time, where `to-spec` assumes you know what you are
@@ -219,33 +241,3 @@ building and are slicing *how*.
 Run the grill and the implementation in separate sessions. The stated ceiling is
 roughly 140K tokens before the model degrades, and the installed plugins already
 spend ~9k of that before anything is typed.
-
-### Running `/code-review` here
-
-`/code-review` compares against a fixed point on two axes in parallel sub-agents
-— **Standards** (does this follow the repo's documented conventions?) and
-**Spec** (does it do what the ticket asked?). Four things about it are specific
-to this repo and are not obvious from the skill:
-
-- **Stage before reviewing.** `/implement` runs the review *before* it commits,
-  so `git diff main...HEAD` is empty and both agents review nothing while
-  reporting cleanly. `git add -A` first and tell them to use
-  `git diff --cached main`.
-- **Hand the Spec agent the ticket.** A sub-agent cannot reach Linear without
-  the `--workspace` flag and will not know to use it, so paste the issue body
-  into its prompt rather than leaving it to find one. Include the ticket's
-  *comments*: follow-ups from earlier tickets are recorded there and are part of
-  what the review is checking against.
-- **Point the Standards agent at `CONTEXT.md`.** Its ubiquitous language is
-  normative here — the Avoid list is the standard, and it is the one thing a
-  generic reviewer will not think to check.
-- **Findings are arguments, not instructions.** Most should be fixed. One worth
-  keeping is worth *answering*: if a reviewer calls something speculative and it
-  is not, the ADR is where that gets settled, and a finding that survives should
-  leave the reasoning better written down than it found it.
-
-**Verify platform claims against the platform.** Both axes flagged the same
-unbacked figure in WAV-11 — a function timeout taken from a docs table of plan
-defaults. The project's own settings are the answer, and they are one API call
-away. Anything a deployment decides rather than a file (`fluid`, function
-timeout and region, cron registration) belongs in that category.
