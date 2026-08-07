@@ -12,13 +12,12 @@ import type { ChartMovement } from '@waveger/domain'
 
 /**
  * A Chart publishes on a fixed weekly cadence (`CONTEXT.md`), so the Chart Week
- * before 2026-07-31 is 2026-07-24 and nothing else.
+ * before 2026-07-31 is 2026-07-24 and nothing else — deliberately not "the most
+ * recent week we hold that is older than this one".
  *
- * Deliberately not "the most recent week we hold that is older than this one".
- * The actor fails 19% of the time (ADR 0002), so a missing week is expected,
- * and measuring a Song's movement across a two-week gap would report a number
- * that is wrong rather than absent. Absent is recoverable: backfill the missing
- * week and the movement appears. Wrong is not.
+ * Movement measured across a gap is wrong rather than absent, and wrong is the
+ * one that cannot be spotted afterwards. ADR 0012 has the argument, what it
+ * costs, and why this constant lives here rather than on the `chart` row.
  */
 const CHART_WEEK_DAYS = 7
 

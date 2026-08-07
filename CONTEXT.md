@@ -21,6 +21,12 @@ One published edition of a Chart, covering one fixed tracking period. The
 product's fundamental clock — every other period is defined in terms of it.
 _Avoid_: week, chart date, chart run
 
+**Held**:
+A Chart Week that is in Waveger's own archive, with every Entry on it. An
+attempt that fetched nothing, or fetched something that was refused, leaves the
+Chart Week not Held — and being Held says nothing about whether it is correct.
+_Avoid_: stored, saved, cached, ingested, have
+
 **Entry**:
 One row of one Chart in one Chart Week — a Song at a Position. An Entry is an
 event in time and is distinct from the Song it names.
@@ -33,8 +39,8 @@ _Avoid_: rank, place, number, spot
 **Movement**:
 How far an Entry's Position changed from the previous Chart Week. Waveger's
 own figure, derived by comparing two Chart Weeks it holds and never read from
-the Chart Compiler. Movement is unknown, not zero, when Waveger does not hold
-the previous Chart Week.
+the Chart Compiler. Movement is unknown, not zero, when the previous Chart Week
+is not Held.
 _Avoid_: change, delta, trend, last week
 
 **Debut**:
