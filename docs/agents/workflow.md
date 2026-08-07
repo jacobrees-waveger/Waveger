@@ -135,11 +135,8 @@ noticed for a day.
 **Close out Linear.** Status to Done, and a comment saying what shipped and what
 to expect. See `issue-tracker.md`.
 
-A landed issue ends up carrying **no** triage role label. `triage-labels.md`
-says exactly one per *triaged* issue, and that stays true while an issue is
-waiting to be worked; once it has shipped there is nothing left to route, and
-`ready-for-agent` on a merged ticket is simply false. Delivery state lives in
-Linear's workflow state, which is the axis that has a `Done`.
+A landed issue ends up carrying **no** triage role label, which is correct
+rather than an oversight — `triage-labels.md` has the reasoning.
 
 **Anything found on the way** becomes its own Linear issue, not a late commit on
 a branch that is about to merge.
