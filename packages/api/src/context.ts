@@ -1,6 +1,7 @@
 import type { Database } from '@waveger/db'
 import type { ApiError, ApiErrorCode } from '@waveger/domain'
 import type { Kysely } from 'kysely'
+import type { ChartSource } from './chart/source'
 
 /**
  * Everything a handler is allowed to reach for.
@@ -13,6 +14,7 @@ import type { Kysely } from 'kysely'
 export interface ApiEnv {
   Variables: {
     db: Kysely<Database>
+    chartSource: ChartSource
   }
 }
 

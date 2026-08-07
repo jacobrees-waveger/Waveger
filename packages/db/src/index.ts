@@ -7,4 +7,4 @@
  * `@waveger/db/testing`.
  */
 export { createDb, type CreateDbOptions } from './client'
-export type { Database } from './schema'
+export type { Database, IngestionFlag } from './schema'

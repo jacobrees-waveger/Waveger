@@ -68,12 +68,49 @@ import nothing from `next/*`, so moving the API to its own deployment later is
 a swap of `apps/web/src/app/api/[[...route]]/route.ts`, not a rewrite.
 
 - `GET /api/v1/status` — service, database reachability, applied migrations
+- `GET /api/v1/chart-weeks/latest` — the most recently held Chart Week, ranked
+  from Position 1 down. Answers 404 `no_chart_week` when the archive is empty,
+  which both apps say out loud rather than rendering nothing
 - `GET /api/v1/openapi.json` — the OpenAPI 3.1 document, generated from the
   same Zod schemas the routes validate against
 
 `packages/api/openapi.json` is committed so a contract change shows up as a
 diff in review. A test fails if it drifts from what the routes generate; run
 `pnpm openapi` to update it.
+
+Two more routes sit under `/api/internal` and are deliberately **absent** from
+that document. They serve the operator, promise nothing to any client, and are
+free to change. The shared secret guarding them arrives with the schedule.
+
+- `POST /api/internal/ingest` — `{"chart": "uk-singles", "date": "2026-07-31"}`
+- `GET /api/internal/runs?chart=…&date=…` — what happened when it ran
+
+## Charts
+
+Waveger consumes the UK Official Singles Chart and never compiles its own. All
+chart data enters through one `ChartSource` (ADR 0002), so replacing where it
+comes from is an adapter and not a rewrite. Today that implementation replays a
+stored run of the Apify actor — the verified run of the Chart Week dated
+2026-07-31, kept verbatim in `packages/api/src/chart/fixtures/`. The live actor
+arrives later and changes nothing above the seam.
+
+Ingestion fetches a Chart Week, judges it **whole**, and only then persists it.
+A week is refused unless it has exactly the Chart's Position count, contiguous
+from 1, with no duplicate Positions and no missing titles or Artists — because
+the dangerous failure of a 19%-failure-rate scraper is not the run that errors,
+it is the one that returns 87 of 100 Positions and looks like a chart. A refused
+week leaves the archive untouched and is recorded as a failed run, with its
+payload kept so it can be replayed without paying to fetch it again.
+
+An Artist over the Chart Compiler's three-per-week cap is **flagged, not
+rejected**. A breach of the Compiler's own rules is evidence about the source,
+not something for Waveger to correct.
+
+Re-running ingestion for a week already held leaves the archive in the same
+state. A Song is identified by a conservative normalised fingerprint of Artist
+and title — case, whitespace and punctuation only, because merging two Songs
+cannot be undone once Entries point at the merged one, while splitting one is
+visible and fixable.
 
 ## Database
 
@@ -91,6 +128,13 @@ read. There is no `down`: this project removes obsolete paths rather than
 reversing into them. Adding a migration means editing `packages/db/src/schema.ts`
 in the same commit — that file is the hand-written record of what the SQL
 produced, and nothing generates it.
+
+The archive itself is Charts, Chart Weeks, Songs, Entries and a log of every
+ingestion run. Entries are keyed on Chart Week and Position, which is what makes
+duplicate Positions impossible to persist and re-ingestion an upsert. There is
+no movement column: movement is derived at read time by self-joining the
+previous Chart Week, so correcting a past week fixes its neighbours with no
+reprocessing step.
 
 ## Tests
 

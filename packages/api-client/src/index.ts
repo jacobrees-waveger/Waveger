@@ -1,7 +1,9 @@
 import {
   apiErrorSchema,
   apiStatusSchema,
+  chartWeekSchema,
   type ApiStatus,
+  type ChartWeek,
 } from '@waveger/domain'
 
 /**
@@ -36,6 +38,17 @@ export function describeError(error: unknown): string {
 
 export interface ApiClient {
   getStatus(options?: { signal?: AbortSignal }): Promise<ApiStatus>
+  /**
+   * The most recently held Chart Week, or null when Waveger holds none.
+   *
+   * An empty archive is a state both apps are required to say out loud, not a
+   * failure — so it arrives as null rather than as a thrown error. Only the
+   * API's own `no_chart_week` maps to it: a 404 from anywhere else is still a
+   * 404, and a misconfigured base URL does not quietly read as an empty chart.
+   */
+  getLatestChartWeek(options?: {
+    signal?: AbortSignal
+  }): Promise<ChartWeek | null>
 }
 
 export interface CreateApiClientOptions {
@@ -82,6 +95,19 @@ export function createApiClient(options: CreateApiClientOptions): ApiClient {
       return apiStatusSchema.parse(
         await request('/status', callOptions?.signal),
       )
+    },
+
+    async getLatestChartWeek(callOptions) {
+      try {
+        return chartWeekSchema.parse(
+          await request('/chart-weeks/latest', callOptions?.signal),
+        )
+      } catch (error) {
+        if (error instanceof ApiRequestError && error.code === 'no_chart_week') {
+          return null
+        }
+        throw error
+      }
     },
   }
 }

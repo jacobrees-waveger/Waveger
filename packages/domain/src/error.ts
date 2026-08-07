@@ -25,6 +25,16 @@ const apiErrorCodes = [
   'invalid_request',
   'database_unreachable',
   'internal_error',
+  /**
+   * The archive holds no Chart Week at all. Its own code rather than a plain
+   * `not_found`, so a client can tell an empty archive — which both apps are
+   * required to say out loud — from a path that does not exist.
+   */
+  'no_chart_week',
+  /** A fetched Chart Week was not the whole week, so none of it was written. */
+  'chart_week_rejected',
+  /** The `ChartSource` itself failed. Nothing was fetched to judge. */
+  'chart_source_unavailable',
 ] as const
 
 export type ApiErrorCode = (typeof apiErrorCodes)[number]

@@ -1,4 +1,4 @@
-import { createApi } from '@waveger/api'
+import { createApi, createFixtureChartSource } from '@waveger/api'
 import { createDb } from '@waveger/db'
 import { handle } from 'hono/vercel'
 
@@ -25,7 +25,13 @@ function getApi() {
     // function, so the pooler is doing the connection management (ADR 0008).
     // A small local pool on top of it keeps one function instance from opening
     // a connection per concurrent request.
-    api = createApi({ db: createDb({ connectionString, max: 5 }) })
+    // The only place that decides where chart data comes from. WAV-11 swaps
+    // the stored run for the live Apify actor here and nowhere else — that is
+    // what the `ChartSource` seam is for (ADR 0002).
+    api = createApi({
+      db: createDb({ connectionString, max: 5 }),
+      chartSource: createFixtureChartSource(),
+    })
   }
   return api
 }

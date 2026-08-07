@@ -1,5 +1,5 @@
-import { Status } from '@/screens/status';
+import { Chart } from '@/screens/chart';
 
 export default function IndexRoute() {
-  return <Status />;
+  return <Chart />;
 }

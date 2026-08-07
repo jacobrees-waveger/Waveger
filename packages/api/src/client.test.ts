@@ -4,6 +4,7 @@ import { createTestDatabase, type TestDatabase } from '@waveger/db/testing'
 import { ApiRequestError, createApiClient } from '@waveger/api-client'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApi } from './app'
+import { createFixtureChartSource } from './chart/fixture-source'
 
 /**
  * The shared client against the real API, over real HTTP.
@@ -25,7 +26,10 @@ let received: Record<string, string | string[] | undefined>[]
 
 beforeEach(async () => {
   database = await createTestDatabase()
-  const api = createApi({ db: database.db })
+  const api = createApi({
+    db: database.db,
+    chartSource: createFixtureChartSource(),
+  })
   received = []
 
   server = createServer((request, response) => {
@@ -58,7 +62,10 @@ test('the client reads a status the API really served', async () => {
 
   expect(status.service).toBe('waveger-api')
   expect(status.database.reachable).toBe(true)
-  expect(status.database.migrations).toEqual(['0001_create_schema_migration'])
+  expect(status.database.migrations).toEqual([
+    '0001_create_schema_migration',
+    '0002_create_chart_archive',
+  ])
   expect(received[0]?.accept).toBe('application/json')
 })
 

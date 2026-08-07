@@ -5,6 +5,7 @@ import { apiStatusSchema } from '@waveger/domain'
 import { sql } from 'kysely'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApi } from '../app'
+import { createFixtureChartSource } from '../chart/fixture-source'
 
 /**
  * These tests drive the real Hono app with `app.request()` against a real
@@ -17,7 +18,7 @@ let api: ReturnType<typeof createApi>
 
 beforeEach(async () => {
   database = await createTestDatabase()
-  api = createApi({ db: database.db })
+  api = createApi({ db: database.db, chartSource: createFixtureChartSource() })
 })
 
 afterEach(async () => {
@@ -33,7 +34,10 @@ test('GET /api/v1/status reports the migrated database', async () => {
   expect(body.service).toBe('waveger-api')
   expect(body.version).toBe('v1')
   expect(body.database.reachable).toBe(true)
-  expect(body.database.migrations).toEqual(['0001_create_schema_migration'])
+  expect(body.database.migrations).toEqual([
+    '0001_create_schema_migration',
+    '0002_create_chart_archive',
+  ])
 })
 
 test('a table created in one test database is invisible to another', async () => {

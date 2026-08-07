@@ -64,6 +64,69 @@
           "error",
           "message"
         ]
+      },
+      "ChartWeek": {
+        "type": "object",
+        "properties": {
+          "chart": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "slug",
+              "name"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChartEntry"
+            }
+          }
+        },
+        "required": [
+          "chart",
+          "date",
+          "entries"
+        ]
+      },
+      "ChartEntry": {
+        "type": "object",
+        "properties": {
+          "position": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "title": {
+            "type": "string"
+          },
+          "artist": {
+            "type": "string"
+          },
+          "peakPosition": {
+            "type": "integer"
+          },
+          "weeksOnChart": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "position",
+          "title",
+          "artist",
+          "peakPosition",
+          "weeksOnChart"
+        ]
       }
     },
     "parameters": {}
@@ -99,6 +162,37 @@
           },
           "503": {
             "description": "The service is up but the database is not reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chart-weeks/latest": {
+      "get": {
+        "tags": [
+          "Charts"
+        ],
+        "summary": "The most recently held Chart Week",
+        "description": "The most recently published Chart Week Waveger holds, as a ranked list from Position 1 down. Served from Waveger's own archive: reading it never reaches back to the Chart Compiler. Public and unauthenticated.",
+        "responses": {
+          "200": {
+            "description": "The whole Chart Week, in Position order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChartWeek"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Waveger holds no Chart Week at all. An empty archive rather than a missing path, so a client can say so instead of rendering nothing.",
             "content": {
               "application/json": {
                 "schema": {

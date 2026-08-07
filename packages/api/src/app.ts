@@ -1,7 +1,11 @@
 import { OpenAPIHono } from '@hono/zod-openapi'
 import type { Database } from '@waveger/db'
 import type { Kysely } from 'kysely'
+import type { ChartSource } from './chart/source'
 import { errorBody, type ApiEnv } from './context'
+import { latestChartWeekHandler, latestChartWeekRoute } from './routes/chart-weeks'
+import { ingestHandler, ingestRoute } from './routes/ingest'
+import { runsHandler, runsRoute } from './routes/runs'
 import { statusHandler, statusRoute } from './routes/status'
 
 /**
@@ -10,6 +14,18 @@ import { statusHandler, statusRoute } from './routes/status'
  * binary cannot be recalled, so `/api/v1` only ever grows.
  */
 const API_BASE_PATH = '/api/v1'
+
+/**
+ * Ingestion and its run log. Deliberately outside the versioned namespace and
+ * absent from the OpenAPI document: these routes serve the operator, promise
+ * nothing to any client, and are free to change.
+ *
+ * Under `/api` rather than beside it because the whole Hono app reaches the
+ * world through one Next.js catch-all at `/api`, and ADR 0006 keeps that the
+ * only adapter between the two. A second one for a second prefix would be a
+ * second place to remember when the API moves out.
+ */
+const OPERATOR_BASE_PATH = '/api/internal'
 
 const OPENAPI_PATH = '/openapi.json'
 
@@ -28,36 +44,66 @@ const openApiInfo = {
 
 export interface CreateApiOptions {
   db: Kysely<Database>
+  /** The one route by which chart data enters Waveger (ADR 0002). */
+  chartSource: ChartSource
+}
+
+/**
+ * A validated app. ADR 0006 puts Zod on the routes from the first commit, and
+ * this is the one place a request that does not satisfy a route's schema is
+ * turned into a response: 422, in the same envelope as every other failure.
+ */
+const validatedApp = () =>
+  new OpenAPIHono<ApiEnv>({
+    defaultHook: (result, c) =>
+      result.success
+        ? undefined
+        : c.json(errorBody('invalid_request', result.error.message), 422),
+  })
+
+/**
+ * The public API. Every route here is in the OpenAPI document and none of them
+ * may break: this is the contract a shipped binary holds Waveger to.
+ */
+function buildPublicApi() {
+  const v1 = validatedApp().basePath(API_BASE_PATH)
+
+  v1.openapi(statusRoute, statusHandler)
+  v1.openapi(latestChartWeekRoute, latestChartWeekHandler)
+  v1.doc31(OPENAPI_PATH, openApiInfo)
+
+  return v1
+}
+
+function buildOperatorApi() {
+  const operator = validatedApp().basePath(OPERATOR_BASE_PATH)
+
+  operator.openapi(ingestRoute, ingestHandler)
+  operator.openapi(runsRoute, runsHandler)
+
+  return operator
 }
 
 /**
  * The API, ready to serve. Everything it needs is passed in.
  *
- * `db` is optional internally only so that `createOpenApiDocument` can build
- * the same routes without one; generating the document never runs a handler.
+ * ADR 0006 requires handlers to import nothing from `next/*`, so their
+ * dependencies arrive through the Hono context rather than through
+ * module-level imports — which is also the seam the tests use to hand a route
+ * its own private database and its own `ChartSource`.
  */
-function buildApp(db?: Kysely<Database>) {
-  const app = new OpenAPIHono<ApiEnv>({
-    // The validation policy for every route, set once. ADR 0006 puts Zod on
-    // the routes from the first commit because it is free now and expensive
-    // to retrofit; no route takes a request body or parameter yet, so this is
-    // the policy waiting for its first input rather than something in use.
-    defaultHook: (result, c) =>
-      result.success
-        ? undefined
-        : c.json(errorBody('invalid_request', result.error.message), 422),
-  }).basePath(API_BASE_PATH)
+export function createApi(options: CreateApiOptions) {
+  const app = new OpenAPIHono<ApiEnv>()
 
   // Registered before the routes so it runs before them.
-  if (db !== undefined) {
-    app.use('*', async (c, next) => {
-      c.set('db', db)
-      await next()
-    })
-  }
+  app.use('*', async (c, next) => {
+    c.set('db', options.db)
+    c.set('chartSource', options.chartSource)
+    await next()
+  })
 
-  app.openapi(statusRoute, statusHandler)
-  app.doc31(OPENAPI_PATH, openApiInfo)
+  app.route('/', buildPublicApi())
+  app.route('/', buildOperatorApi())
 
   app.notFound((c) =>
     c.json(errorBody('not_found', `No route for ${c.req.path}`), 404),
@@ -69,8 +115,6 @@ function buildApp(db?: Kysely<Database>) {
   return app
 }
 
-export const createApi = ({ db }: CreateApiOptions) => buildApp(db)
-
 /** The OpenAPI document, built from the same route definitions the server uses. */
 export const createOpenApiDocument = () =>
-  buildApp().getOpenAPI31Document(openApiInfo)
+  buildPublicApi().getOpenAPI31Document(openApiInfo)

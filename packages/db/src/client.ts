@@ -18,6 +18,20 @@ export interface CreateDbOptions {
   max?: number
 }
 
+/**
+ * A Postgres DATE arrives as the string it is, not as a `Date`.
+ *
+ * The driver's default turns 2026-07-31 into midnight *local* time, so a Chart
+ * Week published on a Friday reads as the Thursday for anyone west of UTC, and
+ * every date that goes back out is one day out. Chart Weeks are calendar dates
+ * and carry no instant, so the honest representation is the string Postgres
+ * already sent. Timestamps are unaffected — they really are instants.
+ *
+ * Global to the driver by necessity, so it is done here, in the one module
+ * every database caller loads.
+ */
+pg.types.setTypeParser(pg.types.builtins.DATE, (value) => value)
+
 const SAFE_IDENTIFIER = /^[a-z_][a-z0-9_]*$/
 
 export function assertSafeIdentifier(identifier: string): void {
