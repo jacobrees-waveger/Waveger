@@ -2,7 +2,7 @@ import { createTestDatabase, type TestDatabase } from '@waveger/db/testing'
 import { chartWeekSchema } from '@waveger/domain'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApi } from '../app'
-import verifiedRun from '../chart/fixtures/uk-singles-2026-07-31.json'
+import verifiedRun from '../chart/fixtures/apify/uk-singles-2026-07-31.json'
 import { createFixtureChartSource } from '../chart/fixture-source'
 import { exponentialBackoffMs, type RetryPolicy } from '../chart/retry'
 import {
@@ -374,6 +374,7 @@ function failingSource(failures = Number.POSITIVE_INFINITY) {
   let fetches = 0
 
   const source: ChartSource = {
+    name: 'fixture',
     async fetchChartWeek(id, resumeFrom) {
       resumedFrom.push(resumeFrom)
       fetches += 1
@@ -465,6 +466,7 @@ test('exhausted retries record a failed run rather than raising', async () => {
 test('a source that says trying again cannot help is not tried again', async () => {
   let fetches = 0
   const misconfigured: ChartSource = {
+    name: 'fixture',
     fetchChartWeek: () => {
       fetches += 1
       return Promise.reject(
@@ -505,6 +507,7 @@ test('a Chart Week the archive refuses is not fetched again', async () => {
     'uk-singles/2026-07-31': records.slice(0, 99),
   })
   const counted: ChartSource = {
+    name: 'fixture',
     fetchChartWeek: (id, resumeFrom) => {
       fetches += 1
       return short.fetchChartWeek(id, resumeFrom)
@@ -523,6 +526,7 @@ test('a Chart Week the archive refuses is not fetched again', async () => {
  * a 502 would carry if the short-circuit ever stopped working.
  */
 const neverAsked: ChartSource = {
+  name: 'fixture',
   fetchChartWeek: () =>
     Promise.reject(
       new ChartSourceError('a Chart Week that is Held was fetched again'),

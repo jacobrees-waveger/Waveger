@@ -464,9 +464,16 @@ It is **better than the actor on four counts**, all verified:
    `lastWeek`**; the only nulls are the 11 genuine new entries and re-entries. The defect is the
    actor's, not the source's. ADR 0002's "derive `last_week` ourselves" mitigation is still sound
    and still cheaper, but it is no longer forced.
-2. **It fails cleanly.** Unlike the HTML site, the API does **not** snap dates. A mid-week date, a
-   date before the archive floor, a missing chart-id — all return `{"title": null}` with zero
-   entries. The silent-wrong-week hazard of section 3 disappears.
+2. **It fails visibly.** Unlike the HTML site, the API never serves a different week's entries
+   under the date you asked for, so the silent-wrong-week hazard of section 3 disappears.
+
+   **Corrected 2026-08-08** (WAV-29, re-measured against the live endpoint): the claim that it
+   does *not* snap dates, and that a bad date or chart id returns `{"title": null}` with zero
+   entries, is wrong on both counts. A date it does not publish returns **HTTP 200** with
+   `{"redirect": {"url": "/charts/singles-chart/20260724/7501/"}}` — the snap is present, it is
+   just in the body, and it carries no chart list. A chart id it does not have returns **HTTP 500
+   with an HTML error page**, not JSON at all. A consumer must check the status before parsing,
+   and must not follow that redirect. See ADR 0017's correction section.
 3. **Stable identifiers.** Each row carries a Drupal node id (`nid`) for the song and a
    `/songs/<slug>` URL. That is a real primary key, far better than matching on artist and title
    strings.

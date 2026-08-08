@@ -1,3 +1,4 @@
+import { asFields, asNumber, asString } from './source-fields'
 import type { SourceEntry } from './source'
 
 /**
@@ -40,14 +41,3 @@ export const recordKey = (record: unknown): string => {
   const fields = asFields(record)
   return `${String(fields.chart)}/${String(fields.chart_date)}/${String(fields.rank)}`
 }
-
-const asFields = (record: unknown): Record<string, unknown> =>
-  typeof record === 'object' && record !== null
-    ? (record as Record<string, unknown>)
-    : {}
-
-const asString = (value: unknown): string =>
-  typeof value === 'string' ? value : ''
-
-const asNumber = (value: unknown): number =>
-  typeof value === 'number' ? value : Number.NaN

@@ -8,6 +8,7 @@ import type { Kysely } from 'kysely'
 import { chartWeeksFrom, previousChartWeekDate } from './cadence'
 import { movementOf } from './movement'
 import { chartWeekDueOn } from './schedule'
+import type { FindChartAddress } from './source'
 
 /**
  * Reading the archive Waveger owns.
@@ -37,6 +38,33 @@ export async function findChart(
     ? null
     : { slug: chart.slug, name: chart.name, positionCount: chart.position_count }
 }
+
+/**
+ * The `FindChartAddress` an adapter is built with, bound to this database.
+ *
+ * The one place a Chart's address at the Compiler leaves Postgres. Both
+ * adapters take it, so neither carries its own copy of which Chart is which —
+ * a duplicate nothing would have kept in step, and whose disagreement would
+ * show up as the wrong Chart being fetched rather than as an error.
+ *
+ * Its own query rather than a field on `ArchivedChart`, because the two are
+ * asked for by different callers at different moments: ingestion wants the
+ * Chart to judge a week against, an adapter wants an address to build a
+ * request from, and neither has any use for the other's half.
+ */
+export const chartAddresses =
+  (db: Kysely<Database>): FindChartAddress =>
+  async (slug) => {
+    const chart = await db
+      .selectFrom('chart')
+      .select(['compiler_slug', 'compiler_chart_id'])
+      .where('slug', '=', slug)
+      .executeTakeFirst()
+
+    return chart === undefined
+      ? null
+      : { slug: chart.compiler_slug, chartId: chart.compiler_chart_id }
+  }
 
 /**
  * The Chart Weeks Waveger holds with every Entry on them (`CONTEXT.md`),
@@ -348,6 +376,12 @@ export interface ArchivedRun {
   status: IngestionRunStatus
   /** Why the run held nothing. Null exactly when it succeeded. */
   failure: string | null
+  /**
+   * Which `ChartSource` answered. Null only for runs that predate the archive
+   * recording it — every one of those was the Apify actor, and saying so here
+   * would be inventing the record rather than reading it.
+   */
+  source: string | null
   flags: IngestionFlag[]
   /**
    * Whether the run's raw payload was kept, which is what makes a week
@@ -380,7 +414,15 @@ export async function ingestionRuns(
 ): Promise<ArchivedRun[]> {
   let history = db
     .selectFrom('ingestion_run')
-    .select(['chart_slug', 'week_date', 'status', 'failure', 'flags', 'ran_at'])
+    .select([
+      'chart_slug',
+      'week_date',
+      'status',
+      'failure',
+      'source',
+      'flags',
+      'ran_at',
+    ])
     .select((eb) => eb('payload', 'is not', null).as('payload_stored'))
     .where('chart_slug', '=', query.chart)
     .orderBy('ran_at', 'desc')
@@ -395,6 +437,7 @@ export async function ingestionRuns(
     date: run.week_date,
     status: run.status,
     failure: run.failure,
+    source: run.source,
     flags: run.flags,
     payloadStored: Boolean(run.payload_stored),
     ranAt: run.ran_at,

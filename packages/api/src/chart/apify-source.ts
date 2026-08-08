@@ -4,13 +4,20 @@ import { recordKey, toSourceEntry } from './actor-record'
 import {
   ChartSourceError,
   type ChartSource,
+  type FindChartAddress,
   type ResumeCursor,
   type SourceChartWeek,
 } from './source'
 
 /**
- * Where chart data actually comes from: an Apify actor scraping the Official
- * Charts website.
+ * The retained fallback: an Apify actor scraping the Official Charts website.
+ *
+ * A deployment fetches from the Chart Compiler's own API now
+ * (`official-charts-source.ts`, ADR 0017). This adapter stays implemented, and
+ * stays exercised, because that endpoint is undocumented and can change without
+ * notice — a second working source is the whole mitigation, and one that has
+ * rotted is not a mitigation. It is not a compatibility layer this codebase
+ * carries out of habit.
  *
  * Everything Waveger knows about that actor is in this file, and that is the
  * whole point of the `ChartSource` seam (ADR 0002). Nothing above it knows an
@@ -38,22 +45,23 @@ import {
 const ACTOR = 'jungle_synthesizer/officialcharts-uk-singles-albums-chart-scraper'
 
 /**
- * A Waveger Chart, in the actor's own terms.
+ * What one Chart may cost this source in one fetch.
  *
- * `records` is a hard spend cap and not the Chart's size — the Chart's own
- * `position_count` lives on its row and is what a week is *validated* against.
- * They agree today and they are not the same fact: this one is the most this
- * source will ever pay for in one fetch, and at $0.001 a record it is money
- * with the decimal point moved.
+ * A hard spend cap and not the Chart's size — the Chart's own `position_count`
+ * lives on its row and is what a week is *validated* against. They agree today
+ * and they are not the same fact: this one is the most this source will ever
+ * pay for in one fetch, and at $0.001 a record it is money with the decimal
+ * point moved. It is the actor's price and belongs beside the actor.
  *
- * The actor's default is `["singles-chart", "albums-chart"]`. Waveger needs
- * only the singles chart, and leaving the default would double the bill for
- * data it discards.
+ * Which Chart to scrape is *not* here. That is the Chart's address at the
+ * Compiler, it lives on the Chart's own row, and both adapters read it from
+ * there — a copy in this file would be a second answer to the same question
+ * with nothing keeping the two in step, and its disagreement would show up as
+ * the wrong Chart being fetched rather than as an error from either side.
  */
-const ACTOR_CHARTS: Readonly<Record<string, { slug: string; records: number }>> =
-  {
-    'uk-singles': { slug: 'singles-chart', records: 100 },
-  }
+const ACTOR_RECORDS: Readonly<Record<string, number>> = {
+  'uk-singles': 100,
+}
 
 /**
  * How long one run gets, in seconds.
@@ -102,6 +110,8 @@ export interface ApifyChartSourceOptions {
    * when the module loads and taking the public API down with it.
    */
   token: string | undefined
+  /** Where a Chart lives at the Compiler, out of the Chart's own row. */
+  chartAddress: FindChartAddress
 }
 
 export function createApifyChartSource(
@@ -110,6 +120,8 @@ export function createApifyChartSource(
   const { token } = options
 
   return {
+    name: 'apify',
+
     async fetchChartWeek(
       id: ChartWeekId,
       resumeFrom?: ResumeCursor,
@@ -125,11 +137,23 @@ export function createApifyChartSource(
         )
       }
 
-      const chart = ACTOR_CHARTS[id.chart]
-      if (chart === undefined) {
+      // Two different problems, said differently, because they are fixed in
+      // different places: the first is a Chart this archive does not have, the
+      // second a Chart nobody has decided what this source may spend on.
+      const address = await options.chartAddress(id.chart)
+      if (address === null) {
         throw new ChartSourceError(
-          `${id.chart} is not a Chart this source can fetch. The actor scrapes ` +
-            `${Object.keys(ACTOR_CHARTS).join(', ')}.`,
+          `${id.chart} is not a Chart this archive holds, so there is no ` +
+            'address to scrape it from at the Chart Compiler.',
+          { permanent: true },
+        )
+      }
+
+      const records = ACTOR_RECORDS[id.chart]
+      if (records === undefined) {
+        throw new ChartSourceError(
+          `${id.chart} has no record budget, so this source will not fetch ` +
+            `it. The actor is budgeted for ${Object.keys(ACTOR_RECORDS).join(', ')}.`,
           { permanent: true },
         )
       }
@@ -139,13 +163,19 @@ export function createApifyChartSource(
 
       const run = await client.actor(ACTOR).call(
         {
-          charts: [chart.slug],
+          // The Compiler's own slug, off the Chart's row. The actor scrapes the
+          // same website, so it addresses a Chart the same way — and its
+          // `charts` input has no enum, so a slug it does not know returns
+          // nothing and still charges (ADR 0017). Passed at all because the
+          // actor's default is `["singles-chart", "albums-chart"]`, and leaving
+          // it would double the bill for data Waveger discards.
+          charts: [address.slug],
           // One date twice, because the actor walks a range and Waveger fetches
           // one Chart Week. Left empty it would scrape "the current week only",
           // which is a different week on a Friday than on a Thursday.
           startDate: id.date,
           endDate: id.date,
-          maxItems: chart.records,
+          maxItems: records,
           ...(resume === undefined ? {} : { resumeCursor: resume.cursor }),
         },
         {
@@ -155,7 +185,7 @@ export function createApifyChartSource(
           // the actor's own input and only as good as the actor. This one is
           // what makes "a fetch costs $0.20" a fact rather than an expectation
           // — the account's whole month is $5 (ADR 0002).
-          maxTotalChargeUsd: chargeCeilingUsd(chart.records),
+          maxTotalChargeUsd: chargeCeilingUsd(records),
           // The client streams the actor's own log into ours by default, which
           // is sixty lines a week saying a scrape went fine. The run is in
           // Apify's console with its whole log if a week needs explaining, and
@@ -170,9 +200,9 @@ export function createApifyChartSource(
         throw await failed(client, run, id, { ...resume, datasets })
       }
 
-      const records = await stitch(client, datasets, chart.records)
+      const scraped = await stitch(client, datasets, records)
 
-      return { entries: records.map(toSourceEntry), payload: records }
+      return { entries: scraped.map(toSourceEntry), payload: scraped }
     },
   }
 }

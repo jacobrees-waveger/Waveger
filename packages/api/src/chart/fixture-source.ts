@@ -1,7 +1,7 @@
 import type { ChartWeekId } from '@waveger/domain'
 import { toSourceEntry } from './actor-record'
-import previousWeek from './fixtures/uk-singles-2026-07-24.json'
-import verifiedRun from './fixtures/uk-singles-2026-07-31.json'
+import previousWeek from './fixtures/apify/uk-singles-2026-07-24.json'
+import verifiedRun from './fixtures/apify/uk-singles-2026-07-31.json'
 import {
   ChartSourceError,
   type ChartSource,
@@ -27,10 +27,16 @@ import {
  * Positions — while the biggest fall of the week and all eleven exiting Songs
  * turned out to be different Songs entirely.
  *
- * This source is now for tests alone. A deployment fetches from the actor
- * (`apify-source.ts`), and tests pass their own runs in to describe weeks the
- * archive should refuse — 99 Entries, two Entries at one Position, a blank
- * title — which no real run produces and none of them should.
+ * This source is for tests alone. A deployment fetches from the Chart Compiler
+ * (`official-charts-source.ts`, ADR 0017), and tests pass their own runs in to
+ * describe weeks the archive should refuse — 99 Entries, two Entries at one
+ * Position, a blank title — which no real run produces and none of them should.
+ *
+ * It answers to the actor's name because that is what it replays: everything
+ * above the seam is being shown the payload, the parsing and the run record the
+ * Apify adapter produces. The Compiler's adapter needs no equivalent — it takes
+ * its `fetch`, so its tests drive the real adapter against a real captured
+ * response, with nothing standing in for the code that reads it.
  */
 export function createFixtureChartSource(
   runs: StoredRuns = {
@@ -39,6 +45,8 @@ export function createFixtureChartSource(
   },
 ): ChartSource {
   return {
+    name: 'apify',
+
     async fetchChartWeek(id: ChartWeekId): Promise<SourceChartWeek> {
       const records = runs[`${id.chart}/${id.date}`]
       if (records === undefined) {

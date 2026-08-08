@@ -25,9 +25,11 @@ It beats the actor on five counts:
 2. **A lead-artist id on every row.** 100% coverage over 10,400 Entries. This is
    what makes a Squad of Artists possible at all (ADR 0016), and it is the
    Compiler's own identity, which is what `CONTEXT.md` defers to.
-3. **It fails cleanly.** No date-snapping. A bad date or chart id returns zero
-   Entries rather than silently serving a different week — unlike the HTML site,
-   which returns HTTP 200 for any slug you invent.
+3. **It fails visibly.** A bad date or chart id never silently serves a
+   different week — unlike the HTML site, which returns HTTP 200 for any slug
+   you invent. (This point originally said "no date-snapping" and "returns zero
+   Entries". Both are wrong in detail; see the correction below. The conclusion
+   is not.)
 4. **Stable identifiers.** A node id per Song, rather than matching on artist
    and title strings.
 5. **Genre charts are reachable.** The actor is named for singles and albums and
@@ -36,6 +38,35 @@ It beats the actor on five counts:
 
 It is also **free**, which is not the main reason but is the reason the game
 could be validated against two years of real data before anything was built.
+
+## Correction: how it actually fails
+
+Measured against the live endpoint while WAV-29 built the adapter. The decision
+stands; two of the facts under point 3 do not.
+
+| Asked for | This ADR said | It actually answers |
+|---|---|---|
+| A Chart Week it publishes | the page | the page |
+| A date it does not publish | zero Entries | **HTTP 200 and `{"redirect": {"url": "/charts/singles-chart/20260724/7501/"}}`** — no chart list, so zero Entries is what a reader sees |
+| A chart id it does not have | zero Entries | **HTTP 500, `text/html`**, "The website encountered an unexpected error." |
+
+Two things follow, and both are in `official-charts-source.ts`:
+
+**The date-snapping is there.** It is in the body rather than in the Entries.
+The redirect names another Chart Week and carries none of it, so nothing that
+reads the chart list can be misled today — but "no date-snapping" was the wrong
+lesson to draw, and an adapter that followed that redirect would file one week's
+Entries under another week's date. The adapter refuses any page naming a Chart
+Week other than the one asked for, which is the guard that claim said was
+unnecessary.
+
+**A bad chart id is not JSON at all.** So the status is checked before the body
+is read. Parsed as JSON first it is a `SyntaxError` about an unexpected `T`,
+which says nothing about the Chart and sends an operator nowhere.
+
+Both were arrived at by asking the endpoint rather than by reading
+`docs/research/uk-genre-charts.md`, which carries the same two claims and is
+corrected alongside this.
 
 ## What this costs
 

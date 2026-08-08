@@ -67,8 +67,10 @@ export async function ingestChartWeek(
     fetched = await fetchChartWeekWithRetry(source, id, options.retry)
   } catch (cause) {
     const reason = cause instanceof Error ? cause.message : String(cause)
-    // Nothing was fetched, so there is nothing to store and nothing to flag.
+    // Nothing was fetched, so there is nothing to store and nothing to flag —
+    // but which source failed is exactly what this run is for.
     await recordFailedRun(db, id, 'unavailable', reason, {
+      source: source.name,
       payload: undefined,
       flags: [],
     })
@@ -78,6 +80,7 @@ export async function ingestChartWeek(
   const week = validateChartWeek(fetched.entries, chart)
   if (!week.ok) {
     await recordFailedRun(db, id, 'rejected', week.reason, {
+      source: source.name,
       payload: fetched.payload,
       flags: week.flags,
     })
@@ -99,6 +102,11 @@ export async function ingestChartWeek(
         week_date: id.date,
         status: 'succeeded',
         failure: null,
+        // Which source answered. Waveger has two adapters and a deployment is
+        // wired to one of them (ADR 0017), so without this a week fetched
+        // during a fallback reads afterwards like every other week — and the
+        // two do not report the same things.
+        source: source.name,
         flags: JSON.stringify(week.flags),
         payload: asJson(fetched.payload),
       })
@@ -219,7 +227,7 @@ async function recordFailedRun(
   id: ChartWeekId,
   status: Exclude<IngestionRunStatus, 'succeeded'>,
   failure: string,
-  found: { payload: unknown; flags: IngestionFlag[] },
+  found: { source: string; payload: unknown; flags: IngestionFlag[] },
 ): Promise<void> {
   await db
     .insertInto('ingestion_run')
@@ -228,6 +236,7 @@ async function recordFailedRun(
       week_date: id.date,
       status,
       failure,
+      source: found.source,
       // A week can breach the Compiler's cap and still be half-scraped. This
       // run is the only place that sighting survives, so it is kept even
       // though the week itself was not.

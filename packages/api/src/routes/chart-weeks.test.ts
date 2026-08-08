@@ -2,8 +2,8 @@ import { createTestDatabase, type TestDatabase } from '@waveger/db/testing'
 import { chartWeekSchema } from '@waveger/domain'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApi } from '../app'
-import previousWeek from '../chart/fixtures/uk-singles-2026-07-24.json'
-import verifiedRun from '../chart/fixtures/uk-singles-2026-07-31.json'
+import previousWeek from '../chart/fixtures/apify/uk-singles-2026-07-24.json'
+import verifiedRun from '../chart/fixtures/apify/uk-singles-2026-07-31.json'
 import { createFixtureChartSource } from '../chart/fixture-source'
 
 /** What a visitor sees, read from Waveger's own archive. */

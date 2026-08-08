@@ -40,6 +40,66 @@ resolved by the Compiler to the **lead** Artist:
 Those 19 are the Compiler merging collaborations for us. A Squad of Artists therefore needs **no**
 credit-string parsing, and gets its identity from the same authority `CONTEXT.md` already defers to.
 
+> ### ⚠️ Corrected 2026-08-08 — the merge is the exception, not the rule
+>
+> Re-measured over the same 104 weeks and 10,400 Entries while WAV-29 built the adapter. The
+> counts above are reproducible. The **sentence under them is wrong**, and the conclusion it
+> supports does not survive.
+>
+> **`artistUrl` comes in two shapes, and `fetch.mjs` read them as one.** It takes
+> `aid: artistUrl.split('/')[2]` unconditionally, which reads `/artist/54705/sam-fender` as
+> `54705` and `/artist/ella-langley` as `ella-langley`. Both namespaces happen to be disjoint, so
+> "622 distinct ids" is the right *count* of the wrong *thing*: it is 622 distinct **paths**, of
+> which only 59.3% of Entries carry the numeric form at all.
+>
+> | Path shape | Entries | |
+> |---|---|---|
+> | `/artist/<id>/<slug>` | 6,166 | 59.3% |
+> | `/artist/<slug>` | 4,234 | 40.7% |
+> | no `artistUrl` | 0 | — |
+>
+> **The 19 were counted against the wrong denominator.** 19 identities span more than one credit,
+> out of **286 distinct collaboration credits** — and 4 of the 19 are combined nodes serving
+> several spellings of the same pairing, not merges at all. The Compiler resolves a collaboration
+> to its lead artist **17 times in 286**. Overwhelmingly it mints a node for the pairing:
+>
+> | Distinct collaboration credits | 286 | |
+> |---|---|---|
+> | → its own combined identity | 216 | **75.5%** |
+> | → the lead artist's identity | 21 | 7.3% |
+> | indeterminate (never charted alone in the window) | 49 | 17.1% |
+>
+> By Entry, over the whole archive:
+>
+> | | Entries | |
+> |---|---|---|
+> | Solo credit | 7,946 | 76.4% |
+> | Collaboration → **own combined node** | 1,890 | **18.2%** |
+> | Collaboration → lead artist's node | 136 | 1.3% |
+> | Collaboration, indeterminate | 428 | 4.1% |
+>
+> **What this costs the Squad.** 18% of all Entries are attributed to an identity that a Squad
+> reaches by holding *neither* act. And it is not consistent, which is worse than being uniformly
+> strict — the same Artist splits both ways:
+>
+> ```
+> CHARLI XCX FT TROYE SIVAN    -> /artist/21419/charli-xcx           a Squad holding Charli scores
+> CHARLI XCX FT BILLIE EILISH  -> /artist/charli-xcx-ft-billie-eilish  the same Squad scores nothing
+> ```
+>
+> A player cannot predict which they will get, and no rule they could be told distinguishes them.
+>
+> **What survives.** Identity still comes from the Compiler and Waveger still parses no credit
+> string; the path is a stable key, present on 100% of rows, and `artist.id` being `text`
+> (WAV-28) holds it either way. What does not survive is "the Compiler merges collaborations for
+> us" as a premise a game can be built on. ADR 0016 needs that revisited before a Squad is
+> scored — see WAV-30.
+>
+> Method: `docs/research/squad-viability/` was not re-run. The re-measurement fetched the same
+> `singles-chart` weeks fresh and classified each collaboration credit by whether its path is the
+> whole credit run together (`SHAKIRA & BURNA BOY` → `shakiraburna-boy`) or one act out of it
+> (`SAM FENDER & OLIVIA DEAN` → `sam-fender`).
+
 ### The three-per-artist cap holds exactly, grouped correctly
 
 **Zero** artist-weeks over the cap across all 10,400 Entries. ADR 0002 chose this Chart partly for
