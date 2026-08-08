@@ -103,8 +103,9 @@ they were, so repeating it changes nothing.
 _Avoid_: scoring run, payout, resolution
 
 **Pick Pool**:
-The Songs a player may name in a given Gameweek — the full Top 100 of the most
-recently published Chart Week, not just the Top 40.
+What a player may choose from: the Artists a Squad may hold, or the Songs a Slip
+may name. Drawn from the most recently published Chart Week and running its full
+depth, not just the Top 40.
 _Avoid_: candidates, eligible songs, the board
 
 **Slip**:
@@ -117,13 +118,23 @@ current one — always about movement, entry or exit, never about mere presence.
 _Avoid_: prediction, guess, bet, pick
 
 **Banker**:
-The one Call in a Slip a player nominates to score double.
+The one thing a player nominates to score double — a Call in a Slip, or an
+Artist in a Squad. One word covering both, because it is one idea.
 _Avoid_: captain, boost, multiplier
 
 **Squad**:
-A set of Songs a player holds across a Season under a budget, scoring each
-Gameweek. Distinct from a Slip, which is per-Gameweek and holds nothing.
+A set of Artists a player holds across a Season under a budget, scoring each
+Gameweek. Artists and not Songs, because a Song exits within a Season while an
+Artist persists, and because the Chart Compiler's three-per-Artist cap makes an
+Artist a portfolio of Entries whose ceiling Waveger never has to impose.
+Distinct from a Slip, which is per-Gameweek and holds nothing.
 _Avoid_: team, roster, lineup
+
+**Price**:
+What one Artist costs against a Squad's budget. Set before a Season opens and
+fixed until it closes, so a Season is the only thing that ever re-rates anyone.
+An Artist who first charts mid-Season is priced on arrival and fixed from there.
+_Avoid_: cost, value, valuation
 
 **League**:
 A group of players ranked against one another. Either global or private to an
