@@ -14,11 +14,19 @@ export interface SchemaMigrationTable {
   applied_at: Generated<Date>
 }
 
-/** An externally compiled ranking. Reference data, seeded by a migration. */
+/**
+ * An externally compiled ranking. Reference data, seeded by a migration.
+ *
+ * `slug` and `name` are Waveger's. `compiler_slug` and `compiler_chart_id` are
+ * how the Chart Compiler addresses this same Chart, and together with a date
+ * they are what a Chart Week is fetched by (ADR 0017).
+ */
 export interface ChartTable {
   slug: string
   name: string
   position_count: number
+  compiler_slug: string
+  compiler_chart_id: number
 }
 
 /**
@@ -40,12 +48,26 @@ export interface SongTable {
   artist: string
 }
 
+/**
+ * The act credited on a Song, as the Chart Compiler resolves it.
+ *
+ * `id` is the Compiler's, not ours: which credits count as the same Artist is
+ * its rule and never Waveger's (`CONTEXT.md`). Text rather than a number
+ * because it arrives as a path segment and is only ever compared.
+ */
+export interface ArtistTable {
+  id: string
+  name: string
+}
+
 export interface EntryTable {
   chart_week_id: string
   position: number
   song_id: string
   peak_position: number
   weeks_on_chart: number
+  /** Null when the source that fetched this Entry reported no Artist. */
+  artist_id: string | null
 }
 
 /** What ingestion noticed but did not act on. */
@@ -87,6 +109,7 @@ export interface Database {
   chart: ChartTable
   chart_week: ChartWeekTable
   song: SongTable
+  artist: ArtistTable
   entry: EntryTable
   ingestion_run: IngestionRunTable
 }
