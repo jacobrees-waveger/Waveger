@@ -23,19 +23,21 @@ afterwards.
 
    - `orca linear issue --current --full --json` — works when the worktree was
      created with `--linear-issue`.
-   - Otherwise take the identifier from the branch and **upper-case it**, then
-     read it explicitly:
+   - Otherwise take the identifier from the branch and read it explicitly:
 
      ```bash
-     ID=$(git branch --show-current | grep -oiE 'wav-[0-9]+' | head -1 | tr 'a-z' 'A-Z')
+     ID=$(git branch --show-current | grep -oiE 'wav-[0-9]+' | head -1)
      orca linear issue "$ID" --full \
        --workspace fb959783-b1df-489f-a228-87c38bed4271 --json
      ```
 
+     Case does not matter: `orca linear issue wav-23` resolves WAV-23. The
+     exact-match rule in `issue-tracker.md` is about *names* (`--team WAV` vs
+     `--team Waveger`), not identifiers.
+
      `--workspace` is mandatory on every non-`--current` call: Orca is connected
      to three workspaces and picks between them unpredictably
-     (`docs/agents/issue-tracker.md`). Names match only when they match exactly,
-     hence the upper-casing.
+     (`docs/agents/issue-tracker.md`).
    - If neither works, carry on without an issue and say so. Do not guess one.
 
 4. **Resolve the base branch.** Default to `main` and say nothing — a lone

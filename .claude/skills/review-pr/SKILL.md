@@ -127,7 +127,7 @@ say so and stop.
 
 8. **Close out Linear.** `WS=fb959783-b1df-489f-a228-87c38bed4271`, and resolve
    the issue the way `/draft-pr` does — `orca linear issue --current` first, the
-   branch name upper-cased as the fallback:
+   identifier from the branch name as the fallback:
 
    ```bash
    orca linear status set --id WAV-<n> --to Done --workspace "$WS" --json
