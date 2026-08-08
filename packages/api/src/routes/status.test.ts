@@ -43,6 +43,7 @@ test('GET /api/v1/status reports the migrated database', async () => {
     '0002_create_chart_archive',
     '0003_split_the_ingestion_run_outcomes',
     '0004_the_archive_can_hold_an_artist',
+    '0005_the_run_records_its_source',
   ])
 })
 

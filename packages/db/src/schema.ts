@@ -101,6 +101,19 @@ export interface IngestionRunTable {
   failure: string | null
   flags: JSONColumnType<IngestionFlag[]>
   payload: JSONColumnType<object> | null
+  /**
+   * Which `ChartSource` answered, in the adapter's own name for itself.
+   *
+   * Waveger has two working adapters and a deployment is wired to one of them
+   * (ADR 0017), which is a fact about the deploy and not about the week — so
+   * without this a Chart Week fetched during a fallback reads exactly like one
+   * fetched normally.
+   *
+   * Nullable, and null means the run predates the column rather than that the
+   * source was unknown. Nullable also makes it optional on insert, which is
+   * what lets the schema land a PR ahead of the code that writes it (ADR 0015).
+   */
+  source: string | null
   ran_at: Generated<Date>
 }
 

@@ -69,6 +69,7 @@ test('the client reads a status the API really served', async () => {
     '0002_create_chart_archive',
     '0003_split_the_ingestion_run_outcomes',
     '0004_the_archive_can_hold_an_artist',
+    '0005_the_run_records_its_source',
   ])
   expect(received[0]?.accept).toBe('application/json')
 })
