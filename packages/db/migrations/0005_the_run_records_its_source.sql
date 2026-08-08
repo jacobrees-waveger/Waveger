@@ -1,0 +1,24 @@
+-- A run says which source answered it.
+--
+-- The schema alone, ahead of the code that fills it (ADR 0015). Nullable and
+-- unconstrained, so the version serving while this is applied — which writes no
+-- source at all — survives it untouched.
+--
+-- Waveger now has two working `ChartSource` adapters rather than one: chart data
+-- comes from the Chart Compiler's own JSON API, with the Apify actor retained
+-- behind the same seam as the mitigation for an endpoint that is undocumented
+-- and can change without notice (ADR 0017). Which one a deployment is wired to
+-- is a deploy-time fact that leaves no trace in the archive, so a week fetched
+-- during a fallback would otherwise be indistinguishable afterwards from every
+-- other week — and the two sources do not report the same things.
+--
+-- Free text, and deliberately no check constraint. The names are the adapters'
+-- own, adapters are expected to come and go behind the seam, and a constraint
+-- here would make adding one a migration. This column records what answered; it
+-- is not a list of what may.
+alter table ingestion_run add column source text;
+
+-- Null only for the runs that happened before this column existed. Left as
+-- null rather than backfilled with 'apify': every one of them was the actor,
+-- but inventing the record after the fact makes "which source answered" a
+-- thing this column sometimes guesses at.

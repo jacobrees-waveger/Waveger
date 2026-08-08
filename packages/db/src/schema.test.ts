@@ -162,6 +162,50 @@ test('an Entry cannot name an Artist the archive does not hold', async () => {
   await expect(unknownArtist).rejects.toThrow(/entry_artist_id_fkey/)
 })
 
+/**
+ * A run may say which source answered it, and need not.
+ *
+ * Need not because this column lands a PR ahead of the code that writes it
+ * (ADR 0015): the version serving while the migration is applied writes no
+ * source, and has to keep recording its runs exactly as it did before.
+ */
+test('an ingestion run may record its source, and stands without one', async () => {
+  await database.db
+    .insertInto('ingestion_run')
+    .values([
+      {
+        chart_slug: 'uk-singles',
+        week_date: '2026-07-31',
+        status: 'succeeded',
+        failure: null,
+        flags: '[]',
+        payload: null,
+        source: 'official-charts',
+      },
+      // No `source` at all, which is what the code serving today writes.
+      {
+        chart_slug: 'uk-singles',
+        week_date: '2026-07-24',
+        status: 'succeeded',
+        failure: null,
+        flags: '[]',
+        payload: null,
+      },
+    ])
+    .execute()
+
+  const runs = await database.db
+    .selectFrom('ingestion_run')
+    .select(['week_date', 'source'])
+    .orderBy('week_date')
+    .execute()
+
+  expect(runs).toEqual([
+    { week_date: '2026-07-24', source: null },
+    { week_date: '2026-07-31', source: 'official-charts' },
+  ])
+})
+
 /** Inserts a Song, and returns the Entry values putting it at a Position. */
 async function songAtPosition(
   chartWeekId: string,
