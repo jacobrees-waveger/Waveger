@@ -1,7 +1,7 @@
 import { createTestDatabase, type TestDatabase } from '@waveger/db/testing'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApi } from '../app'
-import verifiedRun from '../chart/fixtures/uk-singles-2026-07-31.json'
+import verifiedRun from '../chart/fixtures/apify/uk-singles-2026-07-31.json'
 import { createFixtureChartSource, type StoredRuns } from '../chart/fixture-source'
 import { exponentialBackoffMs, type RetryPolicy } from '../chart/retry'
 import { ChartSourceError, type ChartSource } from '../chart/source'
@@ -110,6 +110,7 @@ test('the history covers every Chart Week and names the one each run targeted', 
 test('a run that was refused and a run nobody answered are different outcomes', async () => {
   const refused = apiFor(sourceServing(['2026-07-24'], records.slice(0, 99)))
   const silent = apiFor({
+    name: 'fixture',
     fetchChartWeek: () => Promise.reject(new ChartSourceError('the actor run failed')),
   })
 

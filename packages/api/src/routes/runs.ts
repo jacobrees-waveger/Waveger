@@ -50,6 +50,16 @@ const runSchema = z.object({
   /** Why the run held nothing. Null exactly when it succeeded. */
   failure: z.string().nullable(),
   /**
+   * Which source answered, in its own name for itself — `official-charts` for
+   * the Chart Compiler's own API, `apify` for the actor retained behind the
+   * same seam (ADR 0017). Which one a deployment is wired to is a deploy-time
+   * fact, so this is the only place a week fetched during a fallback can be
+   * told from every other week afterwards.
+   *
+   * Null for runs that predate the archive recording it.
+   */
+  source: z.string().nullable(),
+  /**
    * What the run noticed and did not act on, chiefly an Artist over the Chart
    * Compiler's three-per-week cap. Evidence about the source rather than
    * something for Waveger to correct, so it is reported and never enforced.

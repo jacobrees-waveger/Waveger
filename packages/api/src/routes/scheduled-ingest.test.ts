@@ -2,7 +2,7 @@ import { createTestDatabase, type TestDatabase } from '@waveger/db/testing'
 import { chartWeekSchema } from '@waveger/domain'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { createApi } from '../app'
-import verifiedRun from '../chart/fixtures/uk-singles-2026-07-31.json'
+import verifiedRun from '../chart/fixtures/apify/uk-singles-2026-07-31.json'
 import { createFixtureChartSource } from '../chart/fixture-source'
 import { exponentialBackoffMs, type RetryPolicy } from '../chart/retry'
 import { chartWeekDueOn } from '../chart/schedule'
@@ -86,6 +86,7 @@ test('a schedule that fires twice does not fetch the week twice', async () => {
 
   const again = await fire(
     apiFor({
+      name: 'fixture',
       fetchChartWeek: () =>
         Promise.reject(new ChartSourceError('the schedule fetched twice')),
     }),
@@ -102,6 +103,7 @@ test('a schedule that fires twice does not fetch the week twice', async () => {
  */
 test('a schedule that cannot fetch its week records a failed run', async () => {
   const api = apiFor({
+    name: 'fixture',
     fetchChartWeek: () => Promise.reject(new ChartSourceError('no such week')),
   })
 

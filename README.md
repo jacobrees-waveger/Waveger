@@ -128,11 +128,33 @@ makes either one permanent.
 
 Waveger consumes the UK Official Singles Chart and never compiles its own. All
 chart data enters through one `ChartSource` (ADR 0002), so replacing where it
-comes from is an adapter and not a rewrite. That implementation is an Apify
-actor scraping the Official Charts site, and everything that knows the actor
-exists is inside `packages/api/src/chart/apify-source.ts` — one file, needing
-`APIFY_TOKEN`. Tests replay two runs of it kept verbatim in
-`packages/api/src/chart/fixtures/`.
+comes from is an adapter and not a rewrite. It has been replaced once, and it
+cost an adapter: a deployment fetches from the Chart Compiler's own JSON API at
+`backstage.officialcharts.com/ce-api`, which is free, complete and undocumented
+(ADR 0017). Everything that knows that endpoint exists is inside
+`packages/api/src/chart/official-charts-source.ts`.
+
+The Apify actor it replaced stays implemented in
+`packages/api/src/chart/apify-source.ts`, needing `APIFY_TOKEN`, and retreating
+to it is one line in `apps/web/src/app/api/[[...route]]/route.ts`. That is not a
+compatibility layer kept out of habit — an undocumented endpoint can change
+without notice, and a second working adapter is the whole mitigation.
+
+Which Chart to ask either of them for comes off the Chart's own row
+(`compiler_slug`, `compiler_chart_id`), so neither adapter keeps its own answer
+to that question and a second Chart is a migration rather than an edit.
+
+Both read real captured responses, kept verbatim in
+`packages/api/src/chart/fixtures/` with whatever defects they carry — a
+hand-authored Chart Week has already misled here, the invented one WAV-11
+replaced reproducing the aggregate shape of a real week exactly while getting
+the biggest fall and all eleven exits wrong.
+
+The Compiler's adapter takes its `fetch`, so its own tests drive it end to end
+against those responses. The actor's cannot: it builds an `ApifyClient` and a
+run costs $0.20, so its tests cover only the refusals it reaches before
+spending, and everything past that point is exercised through the fixture
+`ChartSource` that replays its payloads.
 
 It runs **on a schedule**: a Vercel cron entry fires
 `GET /api/internal/ingest/uk-singles` at 06:00 UTC each Saturday, and the route
@@ -140,10 +162,12 @@ works out which Chart Week that is — the most recent Friday. A GET because tha
 is the only request Vercel Cron makes, and Saturday because the Chart goes live
 on Friday evening (ADR 0013).
 
-The actor fails about one run in five, so a failed fetch is **tried three times**
-with a doubling backoff, each attempt resuming where the last stopped rather than
-paying again for records already received. When all three fail the run is
-recorded as **unavailable** and the schedule carries on (ADR 0014). A Chart Week
+A failed fetch is **tried three times** with a doubling backoff, each attempt
+told where the last stopped — which the actor uses to resume rather than pay
+again for records already received, and which the Compiler's adapter ignores,
+because a whole Chart Week arrives in one response and there is nothing to
+resume. When all three fail the run is recorded as **unavailable** and the
+schedule carries on (ADR 0014). A Chart Week
 the archive already holds is not fetched at all — Held means the week *and its
 Entries*, never merely that a run happened — and `"refetch": true` on the POST is
 the only way to fetch one again.
@@ -151,14 +175,17 @@ the only way to fetch one again.
 Ingestion fetches a Chart Week, judges it **whole**, and only then persists it.
 A week is refused unless it has exactly the Chart's Position count, contiguous
 from 1, with no duplicate Positions and no missing titles or Artists — because
-the dangerous failure of a 19%-failure-rate scraper is not the run that errors,
-it is the one that returns 87 of 100 Positions and looks like a chart. A refused
-week leaves the archive untouched and is recorded as a **rejected** run, with its
-payload kept so it can be replayed without paying to fetch it again.
+the dangerous failure of a source is not the one that errors, it is the answer
+that carries 87 of 100 Positions and looks like a chart. A date the Compiler
+does not publish comes back with no Entries at all and is refused the same way.
+A refused week leaves the archive untouched and is recorded as a **rejected**
+run, with its payload kept so it can be replayed without fetching it again.
 
 Those two are the only ways a run fails, and they are kept apart because they
 send you to different places: `rejected` is a source that answered with
 something that is not a Chart Week, `unavailable` a source that did not answer.
+Every run — including both of those — records **which source answered it**, so a
+week fetched during a fallback is identifiable afterwards.
 
 An Artist over the Chart Compiler's three-per-week cap is **flagged, not
 rejected**. A breach of the Compiler's own rules is evidence about the source,

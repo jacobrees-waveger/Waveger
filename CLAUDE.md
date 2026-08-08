@@ -60,7 +60,7 @@ ESLint then turns that into a sentence saying why.
 | Database access | Kysely — a typed query builder, **not** an ORM (ADR 0004). Hand-written SQL migrations in `packages/db/migrations`, applied by `pnpm db:migrate` |
 | Database | Postgres |
 | Auth | Better Auth against our own Postgres — cookie sessions on web, bearer tokens on native (ADR 0007) |
-| Chart positions | Apify actor scraping the UK Official Singles Chart (ADR 0002) |
+| Chart positions | The Chart Compiler's own JSON API, `backstage.officialcharts.com/ce-api` — free, complete, undocumented. The Apify actor it replaced stays implemented behind the same `ChartSource` seam as the fallback (ADR 0002, ADR 0017) |
 | Song media | Apple Music API — artwork, previews, catalogue metadata. Joined to chart data on artist and title strings (ADR 0002) |
 | Database host | Neon, London (`lhr1`), provisioned as a Vercel Marketplace resource. Preview deployments get their own database branch (ADR 0008) |
 | Deployment | Vercel project `waveger`, team `jacobreesnew-7380s-projects`, deploying `jacobrees-waveger/Waveger`. Root Directory is `apps/web` and the preset is Next.js — project settings, not files, so see the Deployment table in `README.md` |

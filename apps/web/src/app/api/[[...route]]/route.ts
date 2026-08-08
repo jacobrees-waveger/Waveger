@@ -1,4 +1,8 @@
-import { createApi, createApifyChartSource } from '@waveger/api'
+import {
+  chartAddresses,
+  createApi,
+  createOfficialChartsSource,
+} from '@waveger/api'
 import { createDb } from '@waveger/db'
 import { handle } from 'hono/vercel'
 
@@ -21,16 +25,23 @@ function getApi() {
       )
     }
 
+    // The pooled connection string: every request runs in a serverless
+    // function, so the pooler is doing the connection management (ADR 0008).
+    // A small local pool on top of it keeps one function instance from
+    // opening a connection per concurrent request.
+    const db = createDb({ connectionString, max: 5 })
+
     api = createApi({
-      // The pooled connection string: every request runs in a serverless
-      // function, so the pooler is doing the connection management (ADR 0008).
-      // A small local pool on top of it keeps one function instance from
-      // opening a connection per concurrent request.
-      db: createDb({ connectionString, max: 5 }),
+      db,
       // The only place that decides where chart data comes from — the whole
-      // point of the `ChartSource` seam (ADR 0002). Everything that knows an
-      // Apify actor exists is behind this call.
-      chartSource: createApifyChartSource({ token: process.env.APIFY_TOKEN }),
+      // point of the `ChartSource` seam (ADR 0002). Everything that knows the
+      // Chart Compiler publishes JSON at a host called `backstage` is behind
+      // this call, and retreating to the actor ADR 0017 replaced is this line
+      // becoming `createApifyChartSource({ token: process.env.APIFY_TOKEN,
+      // chartAddress: chartAddresses(db) })`.
+      chartSource: createOfficialChartsSource({
+        chartAddress: chartAddresses(db),
+      }),
       // Neither secret is thrown for when it is missing, unlike DATABASE_URL.
       // A deployment without them still serves the public chart: the operator
       // routes close, and a fetch fails and says why in the run log. That is

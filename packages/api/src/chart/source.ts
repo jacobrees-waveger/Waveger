@@ -11,6 +11,17 @@ import type { ChartWeekId } from '@waveger/domain'
  */
 export interface ChartSource {
   /**
+   * What this source calls itself, recorded against every run it answers.
+   *
+   * Waveger has two working adapters and a deployment is wired to one of them
+   * (ADR 0017), which is a fact about the deploy that would otherwise leave no
+   * trace: a Chart Week fetched during a fallback would read afterwards exactly
+   * like every other week. It lives on the source rather than on its answer
+   * because a run that got no answer needs it most.
+   */
+  readonly name: string
+
+  /**
    * @param resumeFrom - what a previous attempt at this same Chart Week got as
    * far as, when it failed and could say. A source is free to ignore it and
    * start again; one that honours it must still return the *whole* week, not
@@ -21,6 +32,29 @@ export interface ChartSource {
     resumeFrom?: ResumeCursor,
   ): Promise<SourceChartWeek>
 }
+
+/**
+ * How the Chart Compiler addresses a Chart Waveger has its own name for.
+ *
+ * Reference data on the Chart's own row rather than a table in here, so that
+ * adding a Chart is a migration and not a deploy — and so that two adapters
+ * fetching the same Chart cannot disagree about which Chart that is.
+ */
+export interface ChartAddress {
+  /** The Compiler's slug, e.g. `singles-chart` for Waveger's `uk-singles`. */
+  slug: string
+  /** The Compiler's own numeric id for the Chart, e.g. 7501. */
+  chartId: number
+}
+
+/**
+ * A Chart's address at the Compiler, looked up by Waveger's slug.
+ *
+ * Injected rather than read, because a source knows nothing about Postgres and
+ * this is the one thing it needs out of it. Null is a Chart this deployment's
+ * archive does not have, which no source can fetch a week of.
+ */
+export type FindChartAddress = (chart: string) => Promise<ChartAddress | null>
 
 /**
  * How far a failed fetch got, in the source's own terms.
